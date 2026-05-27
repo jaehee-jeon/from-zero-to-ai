@@ -9,12 +9,16 @@ Learn by teaching — Python, Azure, and AI study group
 
 ## 👥 스터디 멤버
 
-| 이름 | GitHub | Python 레벨 |
-|------|--------|-------------|
-| 홍길동 | [@username](https://github.com/username) | 🌱 처음 |
-| 김스터디 | [@username](https://github.com/username) | 🔥 잘함 |
+| 이름 | GitHub |
+|------|--------|
+| 1 | [@username](https://github.com/username) | 
+| 2 | [@username](https://github.com/username) | 
+| 3 | [@username](https://github.com/username) | 
+| 4 | [@username](https://github.com/username) | 
+| 5 | [@username](https://github.com/username) | 
+| 6 | [@username](https://github.com/username) | 
 
-> 멤버 추가 예정
+
 
 ---
 
