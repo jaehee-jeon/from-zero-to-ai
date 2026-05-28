@@ -41,40 +41,6 @@ Learn by teaching — Python, Azure, and AI study group
 4. **모임 전날까지** — 발표 자료 준비 (15분 이내)
 5. **모임 날** — 발표 + Q&A + GitHub 업로드 ✅
 
----
-
-## 📁 레포 구조
-
-```
-📦 from-zero-to-ai
-├── 📂 week1-python-basics/
-│   ├── README.md
-│   └── 이름.md
-├── 📂 week2-azure-ml/
-│   └── 이름.md
-└── 📂 week4-openai/
-    └── 이름.md
-```
-
----
-
-## ✍️ 발표 자료 작성 템플릿
-
-각자 `본인이름.md` 파일을 해당 주차 폴더에 올려주세요.
-
-```markdown
-## 🤔 한 줄 요약
-
-## 🧱 핵심 개념
-
-## 💡 내가 이해한 방식 (비유/예시)
-
-## 🔥 실제로 어디에 쓰이나
-
-## ❓ 아직 모르겠는 부분
-
-## 🔗 참고 자료
-```
 
 ---
 
