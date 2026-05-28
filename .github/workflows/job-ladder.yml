@@ -1,0 +1,159 @@
+name: job-ladder
+
+on:
+  schedule:
+    # 한국시간 금요일 오후 4시 (UTC 오전 7시)
+    - cron: '0 7 * * 5'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  assign-presenters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      assignments: ${{ steps.assign.outputs.assignments }}
+      week: ${{ steps.assign.outputs.week }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            config/members.json
+            config/topics.json
+          sparse-checkout-cone-mode: false
+
+      - name: topics.json confirmed 확인
+        run: |
+          CONFIRMED=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('confirmed', False))")
+          if [ "$CONFIRMED" != "True" ]; then
+            echo "ERROR: topics.json의 confirmed가 true가 아닙니다"
+            echo "스터디장이 topics.json에 주제 입력 후 confirmed: true로 변경해주세요"
+            exit 1
+          fi
+
+      - name: 발표자 랜덤 배정
+        id: assign
+        run: |
+          python3 << 'PYEOF'
+          import json, random, os
+
+          with open('config/members.json', 'r', encoding='utf-8') as f:
+            members = json.load(f)
+
+          with open('config/topics.json', 'r', encoding='utf-8') as f:
+            topics_data = json.load(f)
+
+          topics = topics_data['topics']
+          week = topics_data['week']
+          member_ids = [m['githubUsername'] for m in members]
+          assignments = []
+
+          for topic in topics:
+            if topic.get('assignee'):
+              assignments.append({
+                'title': topic['title'],
+                'assignee': topic['assignee'],
+                'submittedBy': topic.get('submittedBy', ''),
+                'reason': topic.get('reason', '')
+              })
+            else:
+              candidates = [m for m in member_ids if m != topic.get('submittedBy')]
+              if not candidates:
+                candidates = member_ids
+              assignee = random.choice(candidates)
+              assignments.append({
+                'title': topic['title'],
+                'assignee': assignee,
+                'submittedBy': topic.get('submittedBy', ''),
+                'reason': topic.get('reason', '')
+              })
+
+          result = json.dumps(assignments, ensure_ascii=False)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+            f.write(f"assignments={result}\n")
+            f.write(f"week={week}\n")
+
+          print("발표자 배정 완료:")
+          for a in assignments:
+            print(f"  {a['title']} → {a['assignee']}")
+          PYEOF
+
+      - name: #study-weekly 배정 결과 전송
+        env:
+          TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
+          ASSIGNMENTS: ${{ steps.assign.outputs.assignments }}
+          WEEK: ${{ steps.assign.outputs.week }}
+        run: |
+          if [ -z "$TEAMS_WEBHOOK_WEEKLY" ]; then
+            echo "ERROR: TEAMS_WEBHOOK_WEEKLY secret 없음"
+            exit 1
+          fi
+
+          python3 << 'PYEOF'
+          import json, os, urllib.request, urllib.error
+
+          assignments = json.loads(os.environ['ASSIGNMENTS'])
+          week = os.environ['WEEK']
+          webhook_url = os.environ['TEAMS_WEBHOOK_WEEKLY']
+
+          body_items = []
+          for a in assignments:
+            body_items.append({
+              "type": "TextBlock",
+              "text": f"🎯 {a['title']} → @{a['assignee']}",
+              "wrap": True
+            })
+
+          payload = {
+            "type": "message",
+            "attachments": [{
+              "contentType": "application/vnd.microsoft.card.adaptive",
+              "content": {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "type": "AdaptiveCard",
+                "version": "1.2",
+                "body": [
+                  {
+                    "type": "TextBlock",
+                    "text": f"🎲 {week}주차 발표자 배정 완료!",
+                    "weight": "Bolder",
+                    "size": "Medium"
+                  },
+                  *body_items,
+                  {
+                    "type": "TextBlock",
+                    "text": "📝 #study-board 채널에서 본인 티켓을 확인하세요!",
+                    "color": "Attention"
+                  }
+                ]
+              }
+            }]
+          }
+
+          data = json.dumps(payload).encode('utf-8')
+          req = urllib.request.Request(
+            webhook_url,
+            data=data,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+          )
+
+          try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+              print(f"#study-weekly 전송 완료 (HTTP {resp.status})")
+          except urllib.error.HTTPError as e:
+            print(f"ERROR: 전송 실패 (HTTP {e.code})")
+            raise
+          PYEOF
+
+  trigger-guide:
+    needs: assign-presenters
+    uses: ./.github/workflows/job-guide.yml
+    with:
+      assignments: ${{ needs.assign-presenters.outputs.assignments }}
+      week: ${{ needs.assign-presenters.outputs.week }}
+    secrets: inherit

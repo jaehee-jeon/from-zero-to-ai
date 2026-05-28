@@ -1,0 +1,235 @@
+name: job-guide
+
+on:
+  workflow_call:
+    inputs:
+      assignments:
+        required: true
+        type: string
+      week:
+        required: true
+        type: string
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      TEAMS_WEBHOOK_BOARD:
+        required: true
+      TEAMS_WEBHOOK_WEEKLY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  generate-questions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            config/members.json
+          sparse-checkout-cone-mode: false
+
+      - name: 주제별 질문 생성 및 #study-board 티켓 전송
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TEAMS_WEBHOOK_BOARD: ${{ secrets.TEAMS_WEBHOOK_BOARD }}
+          TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
+          ASSIGNMENTS: ${{ inputs.assignments }}
+          WEEK: ${{ inputs.week }}
+        run: |
+          python3 << 'PYEOF'
+          import json, os, urllib.request, urllib.error, time
+
+          assignments = json.loads(os.environ['ASSIGNMENTS'])
+          week = os.environ['WEEK']
+          api_key = os.environ['ANTHROPIC_API_KEY']
+          webhook_board = os.environ['TEAMS_WEBHOOK_BOARD']
+          webhook_weekly = os.environ['TEAMS_WEBHOOK_WEEKLY']
+
+          with open('config/members.json', 'r', encoding='utf-8') as f:
+            members = json.load(f)
+
+          id_map = {m['githubUsername']: {'teamsId': m['teamsId'], 'name': m['name']} for m in members}
+
+          def generate_questions(title, reason):
+            prompt = f"""
+            스터디 맥락: Azure ML과 Azure OpenAI를 활용한 엔터프라이즈 AI 솔루션 개발 스터디
+
+            발표 주제: {title}
+            제출 이유: {reason}
+
+            위 주제로 발표를 준비하는 사람이 반드시 답할 수 있어야 하는
+            핵심 질문 3개를 JSON 형식으로만 반환해주세요.
+            다른 텍스트 없이 JSON만 반환하세요.
+
+            형식:
+            {{"questions": ["질문1", "질문2", "질문3"]}}
+            """
+
+            payload = {
+              "model": "claude-sonnet-4-20250514",
+              "max_tokens": 1000,
+              "messages": [{"role": "user", "content": prompt}]
+            }
+
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+              "https://api.anthropic.com/v1/messages",
+              data=data,
+              headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01"
+              },
+              method='POST'
+            )
+
+            try:
+              with urllib.request.urlopen(req, timeout=30) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+                text = result['content'][0]['text'].strip()
+                text = text.replace('```json', '').replace('```', '').strip()
+                return json.loads(text)['questions']
+            except Exception as e:
+              print(f"WARNING: 질문 생성 실패 ({e}), fallback 사용")
+              return [
+                f"{title}의 핵심 개념을 설명해주세요",
+                f"{title}을 실무에서 어떻게 활용할 수 있나요?",
+                f"{title}에서 가장 주의해야 할 점은 무엇인가요?"
+              ]
+
+          def send_message(webhook_url, payload):
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+              webhook_url,
+              data=data,
+              headers={'Content-Type': 'application/json'},
+              method='POST'
+            )
+            try:
+              with urllib.request.urlopen(req, timeout=10) as resp:
+                print(f"  전송 완료 (HTTP {resp.status})")
+                return True
+            except Exception as e:
+              print(f"  ERROR: {e}")
+              return False
+
+          failed = []
+
+          for assignment in assignments:
+            title = assignment['title']
+            assignee_github = assignment['assignee']
+            reason = assignment.get('reason', '')
+
+            member_info = id_map.get(assignee_github)
+            if not member_info:
+              print(f"WARNING: {assignee_github} Teams ID 없음")
+              failed.append(title)
+              continue
+
+            teams_id = member_info['teamsId']
+            name = member_info['name']
+
+            print(f"질문 생성 중: {title} → {name}")
+            questions = generate_questions(title, reason)
+
+            question_blocks = []
+            for i, q in enumerate(questions, 1):
+              question_blocks.append({
+                "type": "TextBlock",
+                "text": f"Q{i}. {q}",
+                "wrap": True
+              })
+
+            # #study-board에 개인 티켓 전송
+            payload = {
+              "type": "message",
+              "attachments": [{
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.2",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": f"📌 [{week}주차] <at>{name}</at>님 발표 티켓",
+                      "weight": "Bolder",
+                      "size": "Medium"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": f"🎯 주제: {title}",
+                      "weight": "Bolder"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "이번 발표에서 아래 질문들을 중점으로 답해주세요!",
+                      "wrap": True
+                    },
+                    *question_blocks,
+                    {
+                      "type": "TextBlock",
+                      "text": "💬 팀원들도 궁금한 점은 댓글로 달아주세요!",
+                      "isSubtle": True
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "📁 발표 내용을 markdown으로 GitHub에 업로드해주세요 🙏",
+                      "color": "Attention"
+                    }
+                  ],
+                  "msteams": {
+                    "entities": [{
+                      "type": "mention",
+                      "text": f"<at>{name}</at>",
+                      "mentioned": {
+                        "id": teams_id,
+                        "name": name
+                      }
+                    }]
+                  }
+                }
+              }]
+            }
+
+            success = send_message(webhook_board, payload)
+            if not success:
+              failed.append(title)
+
+            time.sleep(2)
+
+          # 실패 항목 알림
+          if failed:
+            error_payload = {
+              "type": "message",
+              "attachments": [{
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.2",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "⚠️ 일부 티켓 전송 실패",
+                      "weight": "Bolder",
+                      "color": "Attention"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": f"실패 항목: {', '.join(failed)}\nGitHub Actions 로그를 확인해주세요.",
+                      "wrap": True
+                    }
+                  ]
+                }
+              }]
+            }
+            send_message(webhook_weekly, error_payload)
+          else:
+            print("모든 티켓 전송 완료!")
+          PYEOF

@@ -1,0 +1,16 @@
+# CODEOWNERS
+# 각 경로 변경 시 반드시 해당 오너의 승인 필요
+
+# config, workflows, CODEOWNERS는 스터디장만 수정 가능
+/.github/         @jaehee-jeon
+/config/          @jaehee-jeon
+/CODEOWNERS       @jaehee-jeon
+/template/        @jaehee-jeon
+
+# 각 멤버는 본인 폴더만 수정 가능
+/jaeheejeon/          @jaehee-jeon
+#/이영희/          @github-id-2
+#/박민준/          @github-id-3
+#/최지수/          @github-id-4
+#/정현우/          @github-id-5
+#/한소연/          @github-id-6
