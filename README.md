@@ -17,6 +17,7 @@ Learn by teaching — Python, Azure, and AI study group
 | 4 | [@username](https://github.com/username) | 
 | 5 | [@username](https://github.com/username) | 
 | 6 | [@username](https://github.com/username) | 
+| 7 | [@username](https://github.com/username) | 
 
 
 
