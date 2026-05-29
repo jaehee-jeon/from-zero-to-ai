@@ -11,13 +11,13 @@ Learn by teaching — Python, Azure, and AI study group
 
 | 이름 | GitHub |
 |------|--------|
-| 1 | [@username](https://github.com/username) | 
-| 2 | [@username](https://github.com/username) | 
-| 3 | [@username](https://github.com/username) | 
-| 4 | [@username](https://github.com/username) | 
-| 5 | [@username](https://github.com/username) | 
-| 6 | [@username](https://github.com/username) | 
-| 7 | [@username](https://github.com/username) | 
+| 1 Jenny | [@Kim-Eunhyang](https://github.com/Kim-Eunhyang) | 
+| 2 김석영 | [@seokyeong-kim](https://github.com/seokyeong-kim) | 
+| 3 김예찬 | [@citizen-ye](https://github.com/citizen-ye) | 
+| 4 박성은 | [@](https://github.com/) | *
+| 5 이준석 | [@eejs-js](https://github.com/eejs-js) | 
+| 6 임치영 | [@yim1jp](https://github.com/yim1jp) | 
+| 7 황선주 | [@seonju](https://github.com/seonju) | 
 
 
 
