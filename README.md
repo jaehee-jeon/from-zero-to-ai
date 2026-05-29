@@ -11,6 +11,7 @@ Learn by teaching — Python, Azure, and AI study group
 
 | 이름 | GitHub |
 |------|--------|
+| 0 전재희 | [@jaehee-jeon](https://github.com/jaehee-jeon) | 
 | 1 Jenny | [@Kim-Eunhyang](https://github.com/Kim-Eunhyang) | 
 | 2 김석영 | [@seokyeong-kim](https://github.com/seokyeong-kim) | 
 | 3 김예찬 | [@citizen-ye](https://github.com/citizen-ye) | 
