@@ -1,7 +1,42 @@
 [
   {
-    "name": "전재희(테스트)",
+    "name": "전재희",
     "teamsId": "student027@aisesac.onmicrosoft.com",
     "githubUsername": "jaehee-jeon"
+  },
+  {
+    "name": "제니",
+    "teamsId": "student005@aisesac.onmicrosoft.com",
+    "githubUsername": "Kim-Eunhyang"
+  },
+  {
+    "name": "김석영",
+    "teamsId": "student004@aisesac.onmicrosoft.com",
+    "githubUsername": "seokyeong-kim"
+  },
+  {
+    "name": "김예찬",
+    "teamsId": "student005@aisesac.onmicrosoft.com",
+    "githubUsername": "citizen-ye"
+  },
+  {
+    "name": "박성은",
+    "teamsId": "YOUR_TEAMS_USER_ID_4",
+    "githubUsername": "github-id-4"
+  },
+  {
+    "name": "이준석",
+    "teamsId": "student021@aisesac.onmicrosoft.com",
+    "githubUsername": "eejs-js"
+  },
+  {
+    "name": "임치영",
+    "teamsId": "student024@aisesac.onmicrosoft.com",
+    "githubUsername": "yim1jp"
+  },
+  {
+    "name": "황선주",
+    "teamsId": "student038@aisesac.onmicrosoft.com",
+    "githubUsername": "koogiryan09"
   }
 ]
