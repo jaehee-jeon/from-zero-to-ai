@@ -11,12 +11,14 @@ Learn by teaching — Python, Azure, and AI study group
 
 | 이름 | GitHub |
 |------|--------|
-| 1 | [@username](https://github.com/username) | 
-| 2 | [@username](https://github.com/username) | 
-| 3 | [@username](https://github.com/username) | 
-| 4 | [@username](https://github.com/username) | 
-| 5 | [@username](https://github.com/username) | 
-| 6 | [@username](https://github.com/username) | 
+| 전재희 | [@jaehee-jeon](https://github.com/jaehee-jeon) | 
+| 1 Jenny | [@Kim-Eunhyang](https://github.com/Kim-Eunhyang) | 
+| 2 김석영 | [@seokyeong-kim](https://github.com/seokyeong-kim) | 
+| 3 김예찬 | [@citizen-ye](https://github.com/citizen-ye) | 
+| 4 박성은 | [@](https://github.com/) | *
+| 5 이준석 | [@eejs-js](https://github.com/eejs-js) | 
+| 6 임치영 | [@yim1jp](https://github.com/yim1jp) | 
+| 7 황선주 | [@seonju](https://github.com/seonju) | 
 
 
 
@@ -41,40 +43,6 @@ Learn by teaching — Python, Azure, and AI study group
 4. **모임 전날까지** — 발표 자료 준비 (15분 이내)
 5. **모임 날** — 발표 + Q&A + GitHub 업로드 ✅
 
----
-
-## 📁 레포 구조
-
-```
-📦 from-zero-to-ai
-├── 📂 week1-python-basics/
-│   ├── README.md
-│   └── 이름.md
-├── 📂 week2-azure-ml/
-│   └── 이름.md
-└── 📂 week4-openai/
-    └── 이름.md
-```
-
----
-
-## ✍️ 발표 자료 작성 템플릿
-
-각자 `본인이름.md` 파일을 해당 주차 폴더에 올려주세요.
-
-```markdown
-## 🤔 한 줄 요약
-
-## 🧱 핵심 개념
-
-## 💡 내가 이해한 방식 (비유/예시)
-
-## 🔥 실제로 어디에 쓰이나
-
-## ❓ 아직 모르겠는 부분
-
-## 🔗 참고 자료
-```
 
 ---
 
