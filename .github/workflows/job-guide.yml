@@ -16,7 +16,7 @@ on:
         required: true
         type: string
     secrets:
-      ANTHROPIC_API_KEY:
+      GEMINI_API_KEY:          # ANTHROPIC_API_KEY 대신 GEMINI_API_KEY 수신
         required: true
       TEAMS_WEBHOOK_BOARD:
         required: true
@@ -37,7 +37,7 @@ jobs:
 
       - name: 질문 생성 + 티켓 전송 + 문제지 생성
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TEAMS_WEBHOOK_BOARD: ${{ secrets.TEAMS_WEBHOOK_BOARD }}
           TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
           ASSIGNMENTS: ${{ inputs.assignments }}
@@ -52,7 +52,7 @@ jobs:
           week = os.environ['WEEK']
           presenting_team = os.environ['PRESENTING_TEAM']
           context = os.environ['CONTEXT']
-          api_key = os.environ['ANTHROPIC_API_KEY']
+          api_key = os.environ['GEMINI_API_KEY']
           webhook_board = os.environ['TEAMS_WEBHOOK_BOARD']
           webhook_weekly = os.environ['TEAMS_WEBHOOK_WEEKLY']
 
@@ -61,65 +61,71 @@ jobs:
 
           id_map = {m['githubUsername']: {'teamsId': m['teamsId'], 'name': m['name'], 'team': m['team']} for m in members}
 
-          def call_claude(prompt):
-            payload = {
-              "model": "claude-sonnet-4-20250514",
-              "max_tokens": 1000,
-              "messages": [{"role": "user", "content": prompt}]
+          def call_gemini(prompt, response_schema=None):
+            """Gemini 1.5 Flash API 호출 (Structured Outputs 적용)"""
+            # 비용 절감 및 속도를 위해 gemini-1.5-flash 모델 적용
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            
+            contents = {
+              "contents": [{
+                "parts": [{"text": prompt}]
+              }]
             }
-            data = json.dumps(payload).encode('utf-8')
+            
+            # JSON 스키마 강제 옵션이 있을 경우 인프라단에서 JSON 구조 제어
+            if response_schema:
+              contents["generationConfig"] = {
+                "responseMimeType": "application/json",
+                "responseSchema": response_schema
+              }
+
+            data = json.dumps(contents).encode('utf-8')
             req = urllib.request.Request(
-              "https://api.anthropic.com/v1/messages",
-              data=data,
-              headers={
-                "Content-Type": "application/json",
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01"
-              },
+              url, data=data,
+              headers={"Content-Type": "application/json"},
               method='POST'
             )
             try:
               with urllib.request.urlopen(req, timeout=30) as resp:
                 result = json.loads(resp.read().decode('utf-8'))
-                return result['content'][0]['text'].strip()
+                return result['candidates'][0]['content']['parts'][0]['text'].strip()
             except Exception as e:
-              print(f"WARNING: Claude API 실패 ({e})")
+              print(f"WARNING: Gemini API 실패 ({e})")
               return None
 
           def generate_ticket_questions(title, reason):
-            """발표자용 Q1, Q2 생성"""
+            """발표자용 Q1, Q2 생성 (Gemini Structured Outputs 구조 보장)"""
             prompt = f"""
-당신은 학습 설계 전문가입니다.
-비전공자와 전공자가 반반인 학생 스터디예요.
-발표자가 발표를 잘 준비할 수 있도록 가이드가 되는 질문 2개를 한국어로 만들어주세요.
+당신은 학습 설계 전문가입니다. 비전공자와 전공자가 반반인 학생 스터디를 리드하고 있습니다.
+발표자가 발표를 잘 준비할 수 있도록 가이드가 되는 날카로운 질문 2개를 한국어로 만들어주세요.
 
-Q1. 오개념 교정
-    이 개념에서 가장 많이 잘못 이해하는 부분을
-    "혹시 ~라고 생각하시나요? 그렇다면 왜 틀렸는지 설명해주세요" 형식으로 만들어주세요.
-
-Q2. 재설명
-    "이 개념을 모르는 팀원한테 카톡 3줄로 설명한다면?" 형식으로 만들어주세요.
-    이걸 답할 수 있으면 발표 준비 완료예요.
+요청 항목:
+q1 (오개념 교정): 이 개념에서 가장 많이 잘못 이해하는 부분을 찾아서 "혹시 ~라고 생각하시나요? 그렇다면 왜 틀렸는지 설명해주세요" 형식으로 구성하세요.
+q2 (재설명): "이 개념을 모르는 팀원한테 카톡 3줄로 설명한다면?" 형식으로 질문을 구성하세요.
 
 주의:
-- 반드시 한국어
-- AI 복붙 불가 (본인 말로 설명해야 답 가능)
-- 비전공자도 공부했으면 답 가능한 난이도
-- 전공 용어 최소화
-- title이 비어있으면 생성하지 마세요
-
-반드시 아래 JSON 형식으로만 반환하세요. 다른 텍스트 없이.
-{{"q1": "질문1", "q2": "질문2"}}
+- 반드시 한국어 사용
+- AI 복붙 불가 및 비전공자 맞춤형 깊이 유지
+- title이 빈값이면 빈 문자열 객체를 생성하세요.
 
 스터디 맥락: {context}
 주제: {title}
 막힌 부분: {reason}
 """
-            result = call_claude(prompt)
+            # Gemini가 무조건 해당 구조의 JSON만 주도록 스키마 정의
+            schema = {
+              "type": "OBJECT",
+              "properties": {
+                "q1": {"type": "STRING"},
+                "q2": {"type": "STRING"}
+              },
+              "required": ["q1", "q2"]
+            }
+            
+            result = call_gemini(prompt, schema)
             if result:
               try:
-                text = result.replace('```json', '').replace('```', '').strip()
-                return json.loads(text)
+                return json.loads(result)
               except:
                 pass
             return {
@@ -128,31 +134,37 @@ Q2. 재설명
             }
 
           def generate_quiz(title, reason, assignee_name):
-            """전원용 실습 문제 생성"""
+            """전원용 실습 문제 생성 (Gemini Structured Outputs 구조 보장)"""
             prompt = f"""
-당신은 학습 설계 전문가입니다.
-비전공자도 공부했으면 풀 수 있는 실습 문제 1개를 한국어로 만들어주세요.
+당신은 학습 설계 전문가입니다. 비전공자도 공부했으면 충분히 이해하고 풀 수 있는 실습 문제 1개를 한국어로 제작해주세요.
 
 조건:
 - 기초 개념이 확실히 잡히는 문제
-- 코드나 직접 손으로 풀어야 하는 문제
-- 정답이 명확한 문제
-- 힌트 1개 포함
-- {assignee_name}이 해설할 수 있는 난이도
-- 8개 문제 중 하나로 난이도가 균등하게
-
-반드시 아래 JSON 형식으로만 반환하세요. 다른 텍스트 없이.
-{{"description": "문제 설명 2-3줄", "questions": ["Q1. 질문", "Q2. 질문", "Q3. 질문"], "hint": "힌트 내용"}}
+- 코드 구현 혹은 손으로 직접 추적해서 풀어야 하는 명확한 정답이 있는 문제
+- 질문(questions)은 명확하게 3개 리스트로 분리
+- {assignee_name}이 스터디 당일 해설할 수 있는 적절한 난이도와 명확한 힌트 제공
 
 스터디 맥락: {context}
 주제: {title}
 막힌 부분: {reason}
 """
-            result = call_claude(prompt)
+            schema = {
+              "type": "OBJECT",
+              "properties": {
+                "description": {"type": "STRING"},
+                "questions": {
+                  "type": "ARRAY",
+                  "items": {"type": "STRING"}
+                },
+                "hint": {"type": "STRING"}
+              },
+              "required": ["description", "questions", "hint"]
+            }
+            
+            result = call_gemini(prompt, schema)
             if result:
               try:
-                text = result.replace('```json', '').replace('```', '').strip()
-                return json.loads(text)
+                return json.loads(result)
               except:
                 pass
             return {
@@ -192,7 +204,7 @@ Q2. 재설명
             teams_id = member_info['teamsId']
             name = member_info['name']
 
-            print(f"질문 생성 중: {title} → {name}")
+            print(f"Gemini 질문 생성 중: {title} → {name}")
 
             # 발표자용 Q1, Q2 생성
             questions = generate_ticket_questions(title, reason)
