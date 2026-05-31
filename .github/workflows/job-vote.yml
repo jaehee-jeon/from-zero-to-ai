@@ -33,8 +33,7 @@ jobs:
             exit 0
           fi
 
-          WEEK=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('week', 1))")
-          TEAM=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('presentingTeam', 'A'))")
+          ROUND=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('round', 1))")
 
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "$TEAMS_WEBHOOK_WEEKLY" \
@@ -51,14 +50,9 @@ jobs:
                     \"body\": [
                       {
                         \"type\": \"TextBlock\",
-                        \"text\": \"📚 ${WEEK}주차 주제 수집을 시작합니다!\",
+                        \"text\": \"📚 Round ${ROUND} 주제 수집을 시작합니다!\",
                         \"weight\": \"Bolder\",
                         \"size\": \"Medium\"
-                      },
-                      {
-                        \"type\": \"TextBlock\",
-                        \"text\": \"이번 주 발표팀: ${TEAM}팀\",
-                        \"weight\": \"Bolder\"
                       },
                       {
                         \"type\": \"TextBlock\",
