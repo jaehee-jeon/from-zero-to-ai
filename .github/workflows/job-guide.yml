@@ -13,7 +13,7 @@ on:
         required: true
         type: string
     secrets:
-      GEMINI_API_KEY:          # ANTHROPIC_API_KEY 대신 GEMINI_API_KEY 사용
+      GEMINI_API_KEY:
         required: true
       TEAMS_WEBHOOK_BOARD:
         required: true
@@ -69,7 +69,7 @@ jobs:
 
           def call_gemini(prompt, response_schema=None):
             """Gemini 1.5 Flash API 호출 (Structured Outputs 적용)"""
-            url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=){api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
             
             contents = {
               "contents": [{
@@ -77,7 +77,6 @@ jobs:
               }]
             }
             
-            # JSON 스키마 강제 규칙 지정
             if response_schema:
               contents["generationConfig"] = {
                 "responseMimeType": "application/json",
@@ -98,33 +97,33 @@ jobs:
               print(f"WARNING: Gemini API 실패 ({e})")
               return None
 
-              def generate_ticket_questions(title, reason):
-                          """발표자용 Q1, Q2 생성 (비전공자 맞춤 직관적 가이드)"""
-                          prompt = f"""
-              당신은 비전공자 학생들을 위한 친절한 학습 설계 전문가이자 멘토입니다.
-              발표자가 해당 주제를 공부하고 발표(10분 내외)를 준비할 때, PPT나 자료에 '무조건 이 내용만큼은 포함해서 설명하라'는 명확한 이정표(가이드라인)를 제시해 주어야 합니다.
+          def generate_ticket_questions(title, reason):
+            """발표자용 Q1, Q2 생성 (비전공자 맞춤 직관적 가이드)"""
+            prompt = f"""
+            당신은 비전공자 학생들을 위한 친절한 학습 설계 전문가이자 멘토입니다.
+            발표자가 해당 주제를 공부하고 발표(10분 내외)를 준비할 때, PPT나 자료에 '무조건 이 내용만큼은 예시와 함께 포함해서 설명하라'는 명확한 이정표(가이드라인)를 제시해 주어야 합니다.
 
-              아래 규격에 맞춰 한국어로 질문을 생성하세요.
+            아래 규격에 맞춰 한국어로 질문 가이드를 생성하세요.
 
-              q1 (오개념 및 주의점 교정): 
-                - 해당 개념에서 초보자가 가장 많이 실수하는 유효한 코드 패턴이나 오개념(예시: 슬라이싱에서 끝 인덱스는 포함되지 않는 점 등)을 하나 콕 집어주세요.
-                - "~라는 코드가 있을 때, 결과가 [X]가 아니라 [Y]가 나오는 이유를 발표 때 팀원들에게 코드를 보여주며 설명해 주세요." 형태로 구체적인 상황을 제시하세요.
+            q1 (오개념 및 주의점 교정): 
+              - 해당 개념에서 초보자가 가장 많이 실수하는 구체적인 코드 패턴이나 유효한 오개념(예시: 슬라이싱에서 끝 인덱스는 포함되지 않는 성질 등)을 하나 콕 집어주세요.
+              - "~라는 코드가 있을 때, 결과가 [X]가 아니라 [Y]가 나오는 이유를 발표 때 팀원들에게 코드를 직접 보여주며 설명해 주세요." 형태로 구체적인 상황을 제시하세요.
 
-              q2 (핵심 요약 가이드): 
-                - 발표자가 장황하게 설명하지 않도록 제한을 둡니다.
-                - "이 개념을 전혀 모르는 팀원에게 발표 마지막에 '이것만은 기억하세요!'라며 딱 3가지 핵심 요약 정리(카톡 3줄 요약 레이아웃)를 준비해서 공유해 주세요." 형태로 가이드를 주되, 해당 주제에서 반드시 들어가야 할 키워드를 힌트로 넌지시 언급해 주세요.
+            q2 (핵심 요약 가이드): 
+              - 발표자가 장황하게 딴 길로 새지 않도록 요약 제한을 둡니다.
+              - "이 개념을 전혀 모르는 팀원에게 발표 마지막에 '이것만은 기억하세요!'라며 딱 3가지 핵심 요약 정리(카톡 3줄 요약 레이아웃)를 준비해서 공유해 주세요." 형태로 가이드를 주되, 해당 주제에서 반드시 언급되어야 할 핵심 키워드를 힌트로 넌지시 찔러주세요.
 
-              주의:
-              - 비전공자 대상이므로 지나치게 하드코어한 아키텍처나 고차원 문법 금지.
-              - title이 비어있으면 생성하지 마세요.
+            주의:
+            - 비전공자 대상이므로 지나치게 하드코어한 컴퓨터 아키텍처나 고차원 문법 용어 사용 금지.
+            - title이 비어있으면 생성하지 마세요.
 
-              반드시 아래 JSON 형식으로만 반환하세요.
-              {{"q1": "구체적인 코드/상황 제시형 질문 내용", "q2": "3줄 요약 준비 가이드 내용"}}
+            반드시 아래 JSON 형식으로만 반환하세요. 다른 텍스트 없이.
+            {{"q1": "구체적인 상황 제시형 질문 내용", "q2": "3줄 요약 준비 가이드 내용"}}
 
-              스터디 맥락: {context}
-              주제: {title}
-              막힌 부분: {reason}
-              """
+            스터디 맥락: {context}
+            주제: {title}
+            막힌 부분: {reason}
+            """
             schema = {
               "type": "OBJECT",
               "properties": {
@@ -141,27 +140,27 @@ jobs:
               except:
                 pass
             return {
-              "q1": f"혹시 {title}이 단순히 암기하면 되는 개념이라고 생각하시나요? 그렇다면 왜 틀렸는지 설명해주세요.",
-              "q2": f"{title}을 모르는 팀원한테 카톡 3줄로 설명한다면?"
+              "q1": f"혹시 {title} 개념을 사용할 때 초보자들이 가장 흔하게 저지르는 실수가 무엇인지 실제 코드 예시와 함께 발표 자료에 포함해 줄 수 있나요?",
+              "q2": f"발표 마지막에 팀원들이 카톡에 복사해두고 볼 수 있도록, {title}의 핵심 규칙 3가지를 '카톡 3줄 요약' 형태로 준비해 주세요."
             }
 
-            def generate_quiz(title, reason, assignee_name):
-                        """전원용 실습 문제 생성 (구체적인 한 줄 퀴즈화)"""
-                        prompt = f"""
+          def generate_quiz(title, reason, assignee_name):
+            """전원용 실습 문제 생성 (구체적인 데이터 상황형 퀴즈)"""
+            prompt = f"""
             당신은 비전공자도 흥미를 느끼고 15분 내에 풀 수 있는 기초 퀴즈 출제자입니다.
             {assignee_name}이 스터디 당일 정답 코드를 화면에 띄우고 해설할 예정입니다.
 
             아래 조건에 맞게 한국어로 문제를 만드세요.
 
             조건:
-            - 대답이 모호한 주관식 서술형 금지. 무조건 '한 줄짜리 코드'나 '명확한 출력값'을 적는 문항으로 출제할 것.
-            - description: 일상적인 데이터(예: 회원 명단 리스트, 로그 기록 텍스트 등) 상황을 짧게 제시하세요.
+            - 대답이 모호한 주관식 서술형 문항 절대 금지. 무조건 '한 줄짜리 코드'나 '명확한 데이터 출력값'을 빈칸 채우기나 단답형으로 적는 문항으로 출제할 것.
+            - description: 일상적이고 직관적인 데이터(예: 회원 명단 리스트, 가상의 장바구니 품목, 웹 로그 텍스트 등) 상황을 2~3줄로 짧게 제시하세요.
             - questions: 총 3개의 문항을 만들되, 난이도를 계단식으로 구성하세요.
-              (예: Q1. 특정 단일 데이터 추출하기 / Q2. 특정 구간 잘라내기 / Q3. 조건을 비틀거나 역순으로 처리하기)
-            - hint: 비전공자가 공식 문서나 구글링할 때 검색하면 좋은 키워드나 팁을 1줄로 제시하세요.
+              (예: Q1. 특정 단일 데이터 콕 집어 추출하기 / Q2. 특정 구간 잘라내기 / Q3. 조건을 비틀거나 역순(마이너스)으로 처리하기)
+            - hint: 비전공자가 공식 문서나 구글링할 때 검색하면 좋은 핵심 키워드나 가벼운 힌트를 1줄로 제시하세요.
 
-            반드시 아래 JSON 형식으로만 반환하세요.
-            {{"description": "상황 제시형 문제 설명", "questions": ["Q1. 문항", "Q2. 문항", "Q3. 문항"], "hint": "구체적인 힌트"}}
+            반드시 아래 JSON 형식으로만 반환하세요. 다른 텍스트 없이.
+            {{"description": "상황 제시형 문제 설명", "questions": ["Q1. 문항", "Q2. 문항", "Q3. 문항"], "hint": "구체적인 힌트 내용"}}
 
             스터디 맥락: {context}
             주제: {title}
@@ -187,9 +186,9 @@ jobs:
               except:
                 pass
             return {
-              "description": f"{title} 관련 기초 실습 문제예요.",
-              "questions": ["Q1. 개념을 직접 코드로 작성해보세요", "Q2. 결과를 예측해보세요", "Q3. 왜 그런 결과가 나왔는지 설명해보세요"],
-              "hint": "기본 개념부터 차근차근 생각해보세요"
+              "description": f"{title} 관련 기초 실습 문제예요. 상황에 맞는 올바른 출력값을 예측해 보세요.",
+              "questions": ["Q1. 첫 번째 데이터를 추출하는 코드를 작성하세요.", "Q2. 뒤에서 3번째까지 데이터를 잘라내 보세요.", "Q3. 데이터의 순서를 반대로 뒤집어 출력해 보세요."],
+              "hint": "기본 개념 공식 문서를 차근차근 참고해 보세요."
             }
 
           def send_message(webhook_url, payload):
@@ -224,8 +223,9 @@ jobs:
             teams_id = member_info['teamsId']
             name = member_info['name']
 
-            print(f"Gemini 질문 생성 중: [{week_label}] {title} → {name}")
+            print(f"Gemini 질문 및 퀴즈 생성 중: [{week_label}] {title} → {name}")
 
+            # 🛠️ 선언했던 정확한 함수 이름으로 매칭 완료 (NameError 근본 해결)
             questions = generate_ticket_questions(title, reason)
             quiz = generate_quiz(title, reason, name)
 
@@ -242,7 +242,7 @@ jobs:
               "attachments": [{
                 "contentType": "application/vnd.microsoft.card.adaptive",
                 "content": {
-                  "$schema": "[http://adaptivecards.io/schemas/adaptive-card.json](http://adaptivecards.io/schemas/adaptive-card.json)",
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                   "type": "AdaptiveCard",
                   "version": "1.2",
                   "body": [
@@ -327,7 +327,7 @@ jobs:
             "attachments": [{
               "contentType": "application/vnd.microsoft.card.adaptive",
               "content": {
-                "$schema": "[http://adaptivecards.io/schemas/adaptive-card.json](http://adaptivecards.io/schemas/adaptive-card.json)",
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                 "type": "AdaptiveCard",
                 "version": "1.2",
                 "body": [
@@ -359,7 +359,7 @@ jobs:
               "attachments": [{
                 "contentType": "application/vnd.microsoft.card.adaptive",
                 "content": {
-                  "$schema": "[http://adaptivecards.io/schemas/adaptive-card.json](http://adaptivecards.io/schemas/adaptive-card.json)",
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                   "type": "AdaptiveCard",
                   "version": "1.2",
                   "body": [
