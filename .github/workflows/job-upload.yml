@@ -10,6 +10,7 @@ on:
       - '!.github/**'
       - '!config/**'
       - '!template/**'
+      - '!quiz/**'  # 문제지 자동 push는 알림 제외
 
 permissions:
   contents: read
@@ -28,10 +29,10 @@ jobs:
       - name: 신규 추가된 md 파일만 감지
         id: detect
         run: |
-          NEW_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD | grep '\.md$' | grep -v '^README\|^\.github\|^config\|^template' || true)
+          NEW_FILES=$(git diff --name-only --diff-filter=A HEAD~1 HEAD | grep '\.md$' | grep -v '^README\|^\.github\|^config\|^template\|^quiz' || true)
 
           if [ -z "$NEW_FILES" ]; then
-            echo "신규 md 파일 없음 (수정만 있는 경우 알림 생략)"
+            echo "신규 md 파일 없음"
             echo "has_new=false" >> $GITHUB_OUTPUT
           else
             echo "신규 파일 감지: $NEW_FILES"
@@ -40,20 +41,14 @@ jobs:
             echo "files=$FILES_JOINED" >> $GITHUB_OUTPUT
           fi
 
-      - name: #study-weekly 업로드 인증 알림
+      - name: '#study-weekly 업로드 인증 알림'
         if: steps.detect.outputs.has_new == 'true'
         env:
           TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
           NEW_FILES: ${{ steps.detect.outputs.files }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SHA: ${{ github.sha }}
-          PUSHER: ${{ github.actor }}
         run: |
-          if [ -z "$TEAMS_WEBHOOK_WEEKLY" ]; then
-            echo "ERROR: TEAMS_WEBHOOK_WEEKLY secret 없음"
-            exit 1
-          fi
-
           python3 << 'PYEOF'
           import json, os, urllib.request, urllib.error
 
@@ -61,13 +56,12 @@ jobs:
           files = [f for f in files_raw.split('|') if f.strip()]
           repo = os.environ['GITHUB_REPOSITORY']
           sha = os.environ['GITHUB_SHA'][:7]
-          pusher = os.environ['PUSHER']
           webhook_url = os.environ['TEAMS_WEBHOOK_WEEKLY']
 
           file_blocks = []
           for f in files:
             parts = f.split('/')
-            member = parts[0] if len(parts) > 1 else pusher
+            member = parts[0] if len(parts) > 1 else "unknown"
             filename = parts[-1]
             github_url = f"https://github.com/{repo}/blob/main/{f}"
             file_blocks.append({
@@ -85,19 +79,9 @@ jobs:
                 "type": "AdaptiveCard",
                 "version": "1.2",
                 "body": [
-                  {
-                    "type": "TextBlock",
-                    "text": "✅ 새 자료가 업로드됐어요!",
-                    "weight": "Bolder",
-                    "size": "Medium"
-                  },
+                  {"type": "TextBlock", "text": "✅ 새 자료가 업로드됐어요!", "weight": "Bolder", "size": "Medium"},
                   *file_blocks,
-                  {
-                    "type": "TextBlock",
-                    "text": f"commit: `{sha}`",
-                    "isSubtle": True,
-                    "size": "Small"
-                  }
+                  {"type": "TextBlock", "text": f"commit: `{sha}`", "isSubtle": True, "size": "Small"}
                 ]
               }
             }]
@@ -105,16 +89,13 @@ jobs:
 
           data = json.dumps(payload).encode('utf-8')
           req = urllib.request.Request(
-            webhook_url,
-            data=data,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
+            webhook_url, data=data,
+            headers={'Content-Type': 'application/json'}, method='POST'
           )
-
           try:
             with urllib.request.urlopen(req, timeout=10) as resp:
-              print(f"#study-weekly 알림 전송 완료 (HTTP {resp.status})")
-          except urllib.error.HTTPError as e:
-            print(f"ERROR: 전송 실패 (HTTP {e.code})")
+              print(f"알림 전송 완료 (HTTP {resp.status})")
+          except Exception as e:
+            print(f"ERROR: {e}")
             raise
           PYEOF

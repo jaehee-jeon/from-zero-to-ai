@@ -3,7 +3,7 @@ name: job-vote
 on:
   schedule:
     # 한국시간 금요일 오전 9시 (UTC 자정)
-    - cron: '0 0 * * 5'
+    # - cron: '0 0 * * 5'
   workflow_dispatch:
 
 permissions:
@@ -15,55 +15,75 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: 주제 수집 알림 전송
+      - name: topics.json skip 확인
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: config/topics.json
+          sparse-checkout-cone-mode: false
+
+      - name: skip 여부 확인 후 알림 전송
         env:
           TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
         run: |
           if [ -z "$TEAMS_WEBHOOK_WEEKLY" ]; then
-            echo "ERROR: TEAMS_WEBHOOK_WEEKLY secret이 없습니다"
+            echo "ERROR: TEAMS_WEBHOOK_WEEKLY secret 없음"
             exit 1
           fi
+
+          SKIP=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('skip', False))")
+          if [ "$SKIP" == "True" ]; then
+            echo "skip: true → 알림 없이 종료"
+            exit 0
+          fi
+
+          WEEK=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('week', 1))")
+          TEAM=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('presentingTeam', 'A'))")
 
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
             -X POST "$TEAMS_WEBHOOK_WEEKLY" \
             -H "Content-Type: application/json" \
-            -d '{
-              "type": "message",
-              "attachments": [
+            -d "{
+              \"type\": \"message\",
+              \"attachments\": [
                 {
-                  "contentType": "application/vnd.microsoft.card.adaptive",
-                  "content": {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "type": "AdaptiveCard",
-                    "version": "1.2",
-                    "body": [
+                  \"contentType\": \"application/vnd.microsoft.card.adaptive\",
+                  \"content\": {
+                    \"\$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",
+                    \"type\": \"AdaptiveCard\",
+                    \"version\": \"1.2\",
+                    \"body\": [
                       {
-                        "type": "TextBlock",
-                        "text": "📚 이번 주 주제 수집을 시작합니다!",
-                        "weight": "Bolder",
-                        "size": "Medium"
+                        \"type\": \"TextBlock\",
+                        \"text\": \"📚 ${WEEK}주차 주제 수집을 시작합니다!\",
+                        \"weight\": \"Bolder\",
+                        \"size\": \"Medium\"
                       },
                       {
-                        "type": "TextBlock",
-                        "text": "아래 두 가지를 댓글로 달아주세요",
-                        "wrap": true
+                        \"type\": \"TextBlock\",
+                        \"text\": \"이번 주 발표팀: ${TEAM}팀\",
+                        \"weight\": \"Bolder\"
                       },
                       {
-                        "type": "TextBlock",
-                        "text": "1️⃣ 이해가 가장 어려웠던 내용 1개\n2️⃣ 중요하다고 생각하는 내용 1개",
-                        "wrap": true
+                        \"type\": \"TextBlock\",
+                        \"text\": \"아래 두 가지를 댓글로 달아주세요\",
+                        \"wrap\": true
                       },
                       {
-                        "type": "TextBlock",
-                        "text": "⏰ 오늘 오후 4시까지 제출해주세요!",
-                        "color": "Attention",
-                        "weight": "Bolder"
+                        \"type\": \"TextBlock\",
+                        \"text\": \"1️⃣ 이해가 가장 어려웠던 내용 1개\n2️⃣ 중요하다고 생각하는 내용 1개\",
+                        \"wrap\": true
+                      },
+                      {
+                        \"type\": \"TextBlock\",
+                        \"text\": \"⏰ 오늘 오후 4시까지 제출해주세요!\",
+                        \"color\": \"Attention\",
+                        \"weight\": \"Bolder\"
                       }
                     ]
                   }
                 }
               ]
-            }')
+            }")
 
           if [ "$RESPONSE" != "200" ] && [ "$RESPONSE" != "202" ]; then
             echo "ERROR: Teams 전송 실패 (HTTP $RESPONSE)"

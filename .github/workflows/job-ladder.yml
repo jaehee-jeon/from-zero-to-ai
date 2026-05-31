@@ -3,7 +3,7 @@ name: job-ladder
 on:
   schedule:
     # 한국시간 금요일 오후 4시 (UTC 오전 7시)
-    - cron: '0 7 * * 5'
+    # - cron: '0 7 * * 5'
   workflow_dispatch:
 
 permissions:
@@ -16,6 +16,8 @@ jobs:
     outputs:
       assignments: ${{ steps.assign.outputs.assignments }}
       week: ${{ steps.assign.outputs.week }}
+      presenting_team: ${{ steps.assign.outputs.presenting_team }}
+      context: ${{ steps.assign.outputs.context }}
 
     steps:
       - name: 코드 체크아웃
@@ -26,16 +28,36 @@ jobs:
             config/topics.json
           sparse-checkout-cone-mode: false
 
-      - name: topics.json confirmed 확인
+      - name: skip 확인
+        run: |
+          SKIP=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('skip', False))")
+          if [ "$SKIP" == "True" ]; then
+            echo "skip: true → 조용히 종료"
+            exit 0
+          fi
+
+      - name: confirmed 확인
         run: |
           CONFIRMED=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('confirmed', False))")
           if [ "$CONFIRMED" != "True" ]; then
-            echo "ERROR: topics.json의 confirmed가 true가 아닙니다"
-            echo "스터디장이 topics.json에 주제 입력 후 confirmed: true로 변경해주세요"
+            echo "ERROR: confirmed가 true가 아닙니다"
             exit 1
           fi
 
-      - name: 발표자 랜덤 배정
+      - name: title 빈값 확인
+        run: |
+          python3 << 'PYEOF'
+          import json, sys
+          with open('config/topics.json', 'r', encoding='utf-8') as f:
+            data = json.load(f)
+          for i, t in enumerate(data['topics']):
+            if not t.get('title', '').strip():
+              print(f"ERROR: topics[{i}] title이 비어있습니다")
+              sys.exit(1)
+          print("title 확인 완료")
+          PYEOF
+
+      - name: 발표자 배정 (A/B팀 기반 + 1인 1주제 보장)
         id: assign
         run: |
           python3 << 'PYEOF'
@@ -49,62 +71,104 @@ jobs:
 
           topics = topics_data['topics']
           week = topics_data['week']
-          member_ids = [m['githubUsername'] for m in members]
+          presenting_team = topics_data.get('presentingTeam', 'A')
+          context = topics_data.get('context', '')
+
+          # 발표팀 멤버만 추출
+          presenting_members = [m for m in members if m['team'] == presenting_team]
+          presenting_ids = [m['githubUsername'] for m in presenting_members]
+          all_ids = [m['githubUsername'] for m in members]
+
           assignments = []
+          assigned_members = []
 
           for topic in topics:
+            title = topic['title']
+            submitted_by = topic.get('submittedBy', '')
+            difficult_submitters = topic.get('difficultSubmitters', [])
+
             if topic.get('assignee'):
               assignments.append({
-                'title': topic['title'],
+                'title': title,
                 'assignee': topic['assignee'],
-                'submittedBy': topic.get('submittedBy', ''),
-                'reason': topic.get('reason', '')
+                'submittedBy': submitted_by,
+                'reason': topic.get('reason', ''),
+                'fallback': False
               })
-            else:
-              candidates = [m for m in member_ids if m != topic.get('submittedBy')]
-              if not candidates:
-                candidates = member_ids
-              assignee = random.choice(candidates)
-              assignments.append({
-                'title': topic['title'],
-                'assignee': assignee,
-                'submittedBy': topic.get('submittedBy', ''),
-                'reason': topic.get('reason', '')
-              })
+              assigned_members.append(topic['assignee'])
+              continue
+
+            # 1차: 발표팀 중 어려운 사람 제외 + 이미 배정된 사람 제외
+            candidates = [
+              m for m in presenting_ids
+              if m != submitted_by
+              and m not in difficult_submitters
+              and m not in assigned_members
+            ]
+
+            fallback = False
+
+            # 2차: 발표팀 중 이미 배정된 사람만 제외
+            if not candidates:
+              candidates = [m for m in presenting_ids if m not in assigned_members]
+              fallback = True
+
+            # 3차: 전체 랜덤
+            if not candidates:
+              candidates = [m for m in all_ids if m not in assigned_members]
+              fallback = True
+
+            # 4차: 진짜 전체 랜덤
+            if not candidates:
+              candidates = all_ids
+              fallback = True
+
+            assignee = random.choice(candidates)
+            assigned_members.append(assignee)
+
+            assignments.append({
+              'title': title,
+              'assignee': assignee,
+              'submittedBy': submitted_by,
+              'reason': topic.get('reason', ''),
+              'fallback': fallback
+            })
 
           result = json.dumps(assignments, ensure_ascii=False)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
             f.write(f"assignments={result}\n")
             f.write(f"week={week}\n")
+            f.write(f"presenting_team={presenting_team}\n")
+            f.write(f"context={context}\n")
 
+          print(f"발표팀: {presenting_team}팀")
           print("발표자 배정 완료:")
           for a in assignments:
-            print(f"  {a['title']} → {a['assignee']}")
+            flag = " ⚠️ fallback" if a['fallback'] else ""
+            print(f"  {a['title']} → {a['assignee']}{flag}")
           PYEOF
 
-      - name: #study-weekly 배정 결과 전송
+      - name: '#study-weekly 배정 결과 전송'
         env:
           TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
           ASSIGNMENTS: ${{ steps.assign.outputs.assignments }}
           WEEK: ${{ steps.assign.outputs.week }}
+          PRESENTING_TEAM: ${{ steps.assign.outputs.presenting_team }}
         run: |
-          if [ -z "$TEAMS_WEBHOOK_WEEKLY" ]; then
-            echo "ERROR: TEAMS_WEBHOOK_WEEKLY secret 없음"
-            exit 1
-          fi
-
           python3 << 'PYEOF'
           import json, os, urllib.request, urllib.error
 
           assignments = json.loads(os.environ['ASSIGNMENTS'])
           week = os.environ['WEEK']
+          team = os.environ['PRESENTING_TEAM']
           webhook_url = os.environ['TEAMS_WEBHOOK_WEEKLY']
 
           body_items = []
           for a in assignments:
+            note = " (전원 어려워해서 랜덤 배정)" if a.get('fallback') else ""
             body_items.append({
               "type": "TextBlock",
-              "text": f"🎯 {a['title']} → @{a['assignee']}",
+              "text": f"🎯 {a['title']} → @{a['assignee']}{note}",
               "wrap": True
             })
 
@@ -119,14 +183,14 @@ jobs:
                 "body": [
                   {
                     "type": "TextBlock",
-                    "text": f"🎲 {week}주차 발표자 배정 완료!",
+                    "text": f"🎲 {week}주차 발표자 배정 완료! ({team}팀 발표)",
                     "weight": "Bolder",
                     "size": "Medium"
                   },
                   *body_items,
                   {
                     "type": "TextBlock",
-                    "text": "📝 #study-board 채널에서 본인 티켓을 확인하세요!",
+                    "text": "📝 #study-board에서 본인 티켓을 확인하세요!",
                     "color": "Attention"
                   }
                 ]
@@ -136,17 +200,14 @@ jobs:
 
           data = json.dumps(payload).encode('utf-8')
           req = urllib.request.Request(
-            webhook_url,
-            data=data,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
+            webhook_url, data=data,
+            headers={'Content-Type': 'application/json'}, method='POST'
           )
-
           try:
             with urllib.request.urlopen(req, timeout=10) as resp:
-              print(f"#study-weekly 전송 완료 (HTTP {resp.status})")
-          except urllib.error.HTTPError as e:
-            print(f"ERROR: 전송 실패 (HTTP {e.code})")
+              print(f"전송 완료 (HTTP {resp.status})")
+          except Exception as e:
+            print(f"ERROR: {e}")
             raise
           PYEOF
 
@@ -156,4 +217,6 @@ jobs:
     with:
       assignments: ${{ needs.assign-presenters.outputs.assignments }}
       week: ${{ needs.assign-presenters.outputs.week }}
+      presenting_team: ${{ needs.assign-presenters.outputs.presenting_team }}
+      context: ${{ needs.assign-presenters.outputs.context }}
     secrets: inherit
