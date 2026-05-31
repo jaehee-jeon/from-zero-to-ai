@@ -85,7 +85,8 @@ jobs:
             payload = {
               "model": "claude-sonnet-4-20250514",
               "max_tokens": 1000,
-              "messages": [{"role": "user", "content": prompt}]
+              "messages": [{"role": "user", "content": prompt}],
+              "system": "반드시 다음 JSON 형식만 반환하세요. 다른 텍스트 없이: {\"questions\": [\"질문1\", \"질문2\", \"질문3\"]}"
             }
 
             data = json.dumps(payload).encode('utf-8')
@@ -107,6 +108,8 @@ jobs:
                 text = text.replace('```json', '').replace('```', '').strip()
                 return json.loads(text)['questions']
             except Exception as e:
+              body = e.read().decode('utf-8')
+              print(f"HTTP {e.code} 에러 본문: {body}")
               print(f"WARNING: 질문 생성 실패 ({e}), fallback 사용")
               return [
                 f"{title}의 핵심 개념을 설명해주세요",
