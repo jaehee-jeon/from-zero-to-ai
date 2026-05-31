@@ -1,13 +1,10 @@
 name: job-vote
 
 on:
-  schedule:
-    # 한국시간 금요일 오전 9시 (UTC 자정)
-    - cron: '0 0 * * 5'
   workflow_dispatch:
 
 permissions:
-  contents: none
+  contents: read
 
 jobs:
   send-vote-open:
@@ -15,7 +12,7 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: topics.json skip 확인
+      - name: 코드 체크아웃
         uses: actions/checkout@v4
         with:
           sparse-checkout: config/topics.json
@@ -70,7 +67,7 @@ jobs:
                       },
                       {
                         \"type\": \"TextBlock\",
-                        \"text\": \"1️⃣ 이해가 가장 어려웠던 내용 1개\n2️⃣ 중요하다고 생각하는 내용 1개\",
+                        \"text\": \"1️⃣ 이해가 가장 어려웠던 내용 1개\\n2️⃣ 중요하다고 생각하는 내용 1개\",
                         \"wrap\": true
                       },
                       {
