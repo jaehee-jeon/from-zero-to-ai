@@ -6,17 +6,14 @@ on:
       assignments:
         required: true
         type: string
-      week:
-        required: true
-        type: string
-      presenting_team:
+      round:
         required: true
         type: string
       context:
         required: true
         type: string
     secrets:
-      GEMINI_API_KEY:          # ANTHROPIC_API_KEY 대신 GEMINI_API_KEY 수신
+      GEMINI_API_KEY:          # ANTHROPIC_API_KEY 대신 GEMINI_API_KEY 사용
         required: true
       TEAMS_WEBHOOK_BOARD:
         required: true
@@ -24,7 +21,7 @@ on:
         required: true
 
 permissions:
-  contents: write  # 문제지 repo push용
+  contents: write
 
 jobs:
   generate-and-publish:
@@ -35,22 +32,31 @@ jobs:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
 
+      - name: 문제지 덮어쓰기 방지 확인
+        env:
+          ROUND: ${{ inputs.round }}
+        run: |
+          QUIZ_PATH="quiz/round${ROUND}_quiz.md"
+          if [ -f "$QUIZ_PATH" ]; then
+            echo "ERROR: $QUIZ_PATH 이미 존재합니다. round 번호를 확인해주세요."
+            exit 1
+          fi
+          echo "문제지 경로 확인 완료: $QUIZ_PATH"
+
       - name: 질문 생성 + 티켓 전송 + 문제지 생성
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TEAMS_WEBHOOK_BOARD: ${{ secrets.TEAMS_WEBHOOK_BOARD }}
           TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
           ASSIGNMENTS: ${{ inputs.assignments }}
-          WEEK: ${{ inputs.week }}
-          PRESENTING_TEAM: ${{ inputs.presenting_team }}
+          ROUND: ${{ inputs.round }}
           CONTEXT: ${{ inputs.context }}
         run: |
           python3 << 'PYEOF'
           import json, os, urllib.request, urllib.error, time
 
           assignments = json.loads(os.environ['ASSIGNMENTS'])
-          week = os.environ['WEEK']
-          presenting_team = os.environ['PRESENTING_TEAM']
+          round_num = os.environ['ROUND']
           context = os.environ['CONTEXT']
           api_key = os.environ['GEMINI_API_KEY']
           webhook_board = os.environ['TEAMS_WEBHOOK_BOARD']
@@ -59,12 +65,11 @@ jobs:
           with open('config/members.json', 'r', encoding='utf-8') as f:
             members = json.load(f)
 
-          id_map = {m['githubUsername']: {'teamsId': m['teamsId'], 'name': m['name'], 'team': m['team']} for m in members}
+          id_map = {m['githubUsername']: {'teamsId': m['teamsId'], 'name': m['name']} for m in members}
 
           def call_gemini(prompt, response_schema=None):
             """Gemini 1.5 Flash API 호출 (Structured Outputs 적용)"""
-            # 비용 절감 및 속도를 위해 gemini-1.5-flash 모델 적용
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            url = f"[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=){api_key}"
             
             contents = {
               "contents": [{
@@ -72,7 +77,7 @@ jobs:
               }]
             }
             
-            # JSON 스키마 강제 옵션이 있을 경우 인프라단에서 JSON 구조 제어
+            # JSON 스키마 강제 규칙 지정
             if response_schema:
               contents["generationConfig"] = {
                 "responseMimeType": "application/json",
@@ -94,10 +99,11 @@ jobs:
               return None
 
           def generate_ticket_questions(title, reason):
-            """발표자용 Q1, Q2 생성 (Gemini Structured Outputs 구조 보장)"""
+            """발표자용 Q1, Q2 생성"""
             prompt = f"""
-            당신은 학습 설계 전문가입니다. 비전공자와 전공자가 반반인 학생 스터디를 리드하고 있습니다.
-            발표자가 발표를 잘 준비할 수 있도록 가이드가 되는 날카로운 질문 2개를 한국어로 만들어주세요.
+            당신은 학습 설계 전문가입니다.
+            비전공자와 전공자가 반반인 학생 스터디예요.
+            발표자가 발표를 잘 준비할 수 있도록 가이드가 되는 질문 2개를 한국어로 만들어주세요.
 
             요청 항목:
             q1 (오개념 교정): 이 개념에서 가장 많이 잘못 이해하는 부분을 찾아서 "혹시 ~라고 생각하시나요? 그렇다면 왜 틀렸는지 설명해주세요" 형식으로 구성하세요.
@@ -105,14 +111,15 @@ jobs:
 
             주의:
             - 반드시 한국어 사용
-            - AI 복붙 불가 및 비전공자 맞춤형 깊이 유지
-            - title이 빈값이면 빈 문자열 객체를 생성하세요.
+            - AI 복붙 불가 (본인 말로 설명해야 답 가능)
+            - 비전공자도 공부했으면 답 가능한 난이도
+            - 전공 용어 최소화
+            - title이 비어있으면 생성하지 마세요
 
             스터디 맥락: {context}
             주제: {title}
             막힌 부분: {reason}
             """
-            # Gemini가 무조건 해당 구조의 JSON만 주도록 스키마 정의
             schema = {
               "type": "OBJECT",
               "properties": {
@@ -134,15 +141,18 @@ jobs:
             }
 
           def generate_quiz(title, reason, assignee_name):
-            """전원용 실습 문제 생성 (Gemini Structured Outputs 구조 보장)"""
+            """전원용 실습 문제 생성"""
             prompt = f"""
-            당신은 학습 설계 전문가입니다. 비전공자도 공부했으면 충분히 이해하고 풀 수 있는 실습 문제 1개를 한국어로 제작해주세요.
+            당신은 학습 설계 전문가입니다.
+            비전공자도 공부했으면 풀 수 있는 실습 문제 1개를 한국어로 만들어주세요.
 
             조건:
             - 기초 개념이 확실히 잡히는 문제
-            - 코드 구현 혹은 손으로 직접 추적해서 풀어야 하는 명확한 정답이 있는 문제
-            - 질문(questions)은 명확하게 3개 리스트로 분리
-            - {assignee_name}이 스터디 당일 해설할 수 있는 적절한 난이도와 명확한 힌트 제공
+            - 코드나 직접 손으로 풀어야 하는 문제
+            - 정답이 명확한 문제
+            - 힌트 1개 포함
+            - {assignee_name}이 해설할 수 있는 난이도
+            - 8개 문제 중 하나로 난이도가 균등하게
 
             스터디 맥락: {context}
             주제: {title}
@@ -192,6 +202,7 @@ jobs:
 
           for assignment in assignments:
             title = assignment['title']
+            week_label = assignment.get('weekLabel', '')
             assignee_github = assignment['assignee']
             reason = assignment.get('reason', '')
 
@@ -204,17 +215,14 @@ jobs:
             teams_id = member_info['teamsId']
             name = member_info['name']
 
-            print(f"Gemini 질문 생성 중: {title} → {name}")
+            print(f"Gemini 질문 생성 중: [{week_label}] {title} → {name}")
 
-            # 발표자용 Q1, Q2 생성
             questions = generate_ticket_questions(title, reason)
-
-            # 전원용 실습 문제 생성
             quiz = generate_quiz(title, reason, name)
 
-            # 문제지 섹션 저장
             quiz_sections.append({
               'title': title,
+              'weekLabel': week_label,
               'assignee_name': name,
               'quiz': quiz
             })
@@ -225,13 +233,13 @@ jobs:
               "attachments": [{
                 "contentType": "application/vnd.microsoft.card.adaptive",
                 "content": {
-                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "$schema": "[http://adaptivecards.io/schemas/adaptive-card.json](http://adaptivecards.io/schemas/adaptive-card.json)",
                   "type": "AdaptiveCard",
                   "version": "1.2",
                   "body": [
                     {
                       "type": "TextBlock",
-                      "text": f"📌 [{week}주차] <at>{name}</at>님 발표 티켓 ({presenting_team}팀)",
+                      "text": f"📌 [Round {round_num} / {week_label}] <at>{name}</at>님 발표 티켓",
                       "weight": "Bolder",
                       "size": "Medium"
                     },
@@ -283,14 +291,14 @@ jobs:
 
             time.sleep(2)
 
-          # 문제지 markdown 파일 생성
-          quiz_md = f"# {week}주차 실습 문제지 🧩\n\n"
-          quiz_md += f"> 스터디 전날까지 GitHub 본인 폴더에\n"
-          quiz_md += f"> `week{week}_quiz.md` 로 올려주세요!\n\n"
+          # 문제지 markdown 생성
+          quiz_md = f"# Round {round_num} 실습 문제지 🧩\n\n"
+          quiz_md += "> 스터디 전날까지 GitHub 본인 폴더에\n"
+          quiz_md += f"> `round{round_num}_quiz.md` 로 올려주세요!\n\n"
           quiz_md += "---\n\n"
 
           for i, section in enumerate(quiz_sections, 1):
-            quiz_md += f"## 📌 문제 {i}. {section['title']}\n"
+            quiz_md += f"## 📌 문제 {i}. [{section['weekLabel']}] {section['title']}\n"
             quiz_md += f"해설 담당: {section['assignee_name']}\n\n"
             quiz_md += f"{section['quiz']['description']}\n\n"
             for q in section['quiz']['questions']:
@@ -298,26 +306,25 @@ jobs:
             quiz_md += f"💡 힌트: {section['quiz']['hint']}\n\n"
             quiz_md += "---\n\n"
 
-          # quiz 폴더에 저장
           os.makedirs('quiz', exist_ok=True)
-          quiz_path = f"quiz/week{week}_quiz.md"
+          quiz_path = f"quiz/round{round_num}_quiz.md"
           with open(quiz_path, 'w', encoding='utf-8') as f:
             f.write(quiz_md)
           print(f"문제지 생성 완료: {quiz_path}")
 
-          # #study-weekly에 문제지 알림 전송
+          # #study-weekly 문제지 알림
           quiz_payload = {
             "type": "message",
             "attachments": [{
               "contentType": "application/vnd.microsoft.card.adaptive",
               "content": {
-                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "$schema": "[http://adaptivecards.io/schemas/adaptive-card.json](http://adaptivecards.io/schemas/adaptive-card.json)",
                 "type": "AdaptiveCard",
                 "version": "1.2",
                 "body": [
                   {
                     "type": "TextBlock",
-                    "text": f"🧩 {week}주차 실습 문제지가 올라왔어요!",
+                    "text": f"🧩 Round {round_num} 실습 문제지가 올라왔어요!",
                     "weight": "Bolder",
                     "size": "Medium"
                   },
@@ -328,7 +335,7 @@ jobs:
                   },
                   {
                     "type": "TextBlock",
-                    "text": f"📁 quiz/week{week}_quiz.md 확인하세요!",
+                    "text": f"📁 quiz/round{round_num}_quiz.md 확인하세요!",
                     "color": "Attention"
                   }
                 ]
@@ -337,14 +344,13 @@ jobs:
           }
           send_message(webhook_weekly, quiz_payload)
 
-          # 실패 항목 알림
           if failed:
             error_payload = {
               "type": "message",
               "attachments": [{
                 "contentType": "application/vnd.microsoft.card.adaptive",
                 "content": {
-                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "$schema": "[http://adaptivecards.io/schemas/adaptive-card.json](http://adaptivecards.io/schemas/adaptive-card.json)",
                   "type": "AdaptiveCard",
                   "version": "1.2",
                   "body": [
@@ -358,7 +364,6 @@ jobs:
           else:
             print("모든 티켓 전송 완료!")
 
-          # 종료 코드 저장 (push용)
           with open('/tmp/quiz_path.txt', 'w') as f:
             f.write(quiz_path)
           PYEOF
