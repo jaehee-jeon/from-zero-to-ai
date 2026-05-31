@@ -3,7 +3,7 @@ name: job-ladder
 on:
   schedule:
     # 한국시간 금요일 오후 4시 (UTC 오전 7시)
-    # - cron: '0 7 * * 5'
+     - cron: '0 7 * * 5'
   workflow_dispatch:
 
 permissions:
