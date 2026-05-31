@@ -3,7 +3,7 @@ name: job-vote
 on:
   schedule:
     # 한국시간 금요일 오전 9시 (UTC 자정)
-    # - cron: '0 0 * * 5'
+   - cron: '0 0 * * 5'
   workflow_dispatch:
 
 permissions:
