@@ -97,42 +97,38 @@ jobs:
               print(f"WARNING: Gemini API 실패 ({e})")
               return None
 
-              def generate_ticket_questions(title, reason):
-                  prompt = f"""
-              당신은 현업 시니어 개발자이자 학습 설계 전문가입니다.
-              비전공자와 전공자가 반반인 학생 스터디에서
-              발표자가 이 개념을 진짜로 이해했는지 검증하고
-              발표 방향을 잡아주는 질문 2개를 한국어로 만들어주세요.
+          def generate_ticket_questions(title, reason, quiz_description):
+            """발표자용 개인 가이드 생성 (마크다운 파일 작성 뼈대 제공)"""
+            prompt = f"""
+            당신은 학생들이 스스로 고민하며 메타인지를 키우도록 돕는 친절한 스터디 교육 설계자입니다.
+            발표자가 본인 이름 폴더에 올릴 '발표 마크다운(.md) 파일의 핵심 목차와 작성 미션' 2가지를 한국어로 작성하세요.
 
-              Q1. 오개념 교정 질문
-                  이 개념을 처음 배우는 사람이
-                  가장 많이 잘못 이해하는 부분을 찾아서
-                  "혹시 ~라고 생각하시나요? 실제로는 어떻게 다른지 설명해주세요"
-                  형식으로 만들어주세요.
-                  → 이 질문에 답하면 오개념이 교정돼야 해요
+            절대 정답 코드나 핵심 이론의 결론을 직접 스포일러 하지 마세요! 발표자가 조사해서 직접 문서에 채워야 합니다.
 
-              Q2. 카톡 재설명 질문
-                  "이 개념을 전혀 모르는 친구한테
-                  카톡 3줄로 설명한다면 어떻게 보낼건가요?
-                  전문 용어 없이 써주세요"
-                  형식으로 만들어주세요.
-                  → 이걸 답할 수 있으면 진짜 이해한 거예요
+            아래 규격에 맞춰 한국어로 질문 가이드를 생성하세요.
 
-              조건:
-              - 반드시 한국어
-              - AI에 그대로 물어봐서 복붙 불가
-                (본인 경험이나 본인 말로 설명해야 답 가능)
-              - 비전공자도 공부했으면 답 가능한 난이도
-              - 전공 용어 최소화
-              - 단답형 불가 (최소 2-3문장 이상 설명해야 답 가능)
+            q1 (마크다운 본문 - 퀴즈 분석 세션 미션):
+              - 발표자가 본인의 발표 마크다운 파일 중간에 채워 넣어야 할 분석 템플릿입니다.
+              - 서식:
+                "📝 **[마크다운 본문 필수 포함 내용]**
+                이번 주 공용 문제지에 출제된 아래 예시 상황을 본인의 발표 마크다운 문서에 인용하고, 빈칸을 채워주세요!
+                * [출제 상황]: {quiz_description}
+                * [내가 해설할 정답 코드]: (직접 작성하기)
+                * [비전공자 팀원들이 가장 많이 실수하는 규칙/주의점]: (직접 조사해서 2~3줄로 설명 적기)"
 
-              반드시 아래 JSON 형식으로만 반환하세요. 다른 텍스트 없이.
-              {{"q1": "질문 내용", "q2": "질문 내용"}}
+            q2 (마크다운 결론 - 단독방 공유용 3줄 요약):
+              - 발표 마크다운 문서 맨 아래(결론 부근)에 들어갈 요약 미션입니다.
+              - 서식:
+                "💡 **[마크다운 결론 필수 포함 내용]**
+                * 이번 주제({title})의 핵심 규칙 3가지를 본인의 언어로 요약하여 '카톡 3줄 요약' 형태로 채워와 주세요! 스터디 당일 팀원들 단톡방에 치트키로 공유될 예정입니다."
 
-              스터디 맥락: {context}
-              주제: {title}
-              막힌 부분: {reason}
-              """
+            반드시 아래 JSON 형식으로만 반환하세요. 다른 텍스트 없이.
+            {{"q1": "완성된 q1 마크다운 가이드", "q2": "완성된 q2 마크다운 미션"}}
+
+            스터디 맥락: {context}
+            주제: {title}
+            막힌 부분: {reason}
+            """
             schema = {
               "type": "OBJECT",
               "properties": {
@@ -149,27 +145,28 @@ jobs:
               except:
                 pass
             return {
-              "q1": f"혹시 {title} 개념을 사용할 때 초보자들이 가장 흔하게 저지르는 실수가 무엇인지 실제 코드 예시와 함께 발표 자료에 포함해 줄 수 있나요?",
-              "q2": f"발표 마지막에 팀원들이 카톡에 복사해두고 볼 수 있도록, {title}의 핵심 규칙 3가지를 '카톡 3줄 요약' 형태로 준비해 주세요."
+              "q1": f"📝 **[마크다운 본문 필수 포함 내용]**\n공용 문제지의 예시 코드를 본인의 발표 마크다운 파일에 넣고, 본인이 생각하는 정답과 주의점을 직접 채워와 주세요!",
+              "q2": f"💡 **[마크다운 결론 필수 포함 내용]**\n발표 마크다운 맨 아래에 팀원들이 꼭 기억해야 할 {title}의 핵심 규칙 3가지를 본인의 언어로 요약해 주세요."
             }
 
-            def generate_quiz(title, reason, assignee_name):
-                        """부담을 줄이기 위해 한 주제당 딱 2문제만 출제"""
-                        prompt = f"""
+          def generate_quiz(title, reason, assignee_name):
+            """전원용 실습 문제 생성 (핵심 위주 딱 2문제 제한)"""
+            prompt = f"""
             당신은 비전공자 스터디원들을 위한 기초 파이썬/AI 실습 문제 출제자입니다.
             각 주제당 너무 많은 문제가 나오면 학습 의욕이 꺾이므로, 반드시 '가장 핵심적인 2문제'만 출제해야 합니다.
 
             아래 조건에 맞게 한국어로 문제를 만드세요.
 
             조건:
-            - 주관식 설명형 절대 금지. 무조건 정답이 코드 한 줄이나 특정 값으로 떨어지는 단답형/빈칸 채우기 문항.
-            - description: 실생활에서 접할 수 있는 직관적인 가상 데이터 리스트나 딕셔너리를 파이썬 코드로 짧게 선언해 주세요. (예: `shopping_cart = [...]` 등)
+            - 대답이 모호한 주관식 설명형 절대 금지. 무조건 정답이 코드 한 줄이나 특정 값으로 떨어지는 단답형/빈칸 채우기 문항.
+            - description: 실생활에서 접할 수 있는 직관적인 가상 데이터 리스트나 딕셔너리를 파이썬 코드로 짧게 선언해 주세요. (예: `shopping_cart = ['사과', '바나나']` 등, 특정인의 이름 기입 금지)
             - questions: 정확히 2개의 문항만 생성하세요. (Q1. 가장 기본 활용, Q2. 초보자가 자주 틀리는 응용이나 부가 기능)
-            - hint: 검색해 볼 수 있는 명확한 키워드 1개.
+            - hint: 검색해 볼 수 있는 명확한 키워드나 가이드 1줄.
 
-            반드시 아래 JSON 형식으로만 반환하세요.
-            {{"description": "가상 파이썬 코드 예시가 포함된 문제 상황 설명", "questions": ["Q1. 문항", "Q2. 문항"], "hint": "구체적인 힌트"}}
+            반드시 아래 JSON 형식으로만 반환하세요. 다른 텍스트 없이.
+            {{"description": "가상 파이썬 코드 예시가 포함된 문제 상황 설명", "questions": ["Q1. 문항", "Q2. 문항"], "hint": "구체적인 힌트 내용"}}
 
+            스터디 맥락: {context}
             주제: {title}
             막힌 부분: {reason}
             """
@@ -193,8 +190,8 @@ jobs:
               except:
                 pass
             return {
-              "description": f"{title} 관련 기초 실습 문제예요. 상황에 맞는 올바른 출력값을 예측해 보세요.",
-              "questions": ["Q1. 첫 번째 데이터를 추출하는 코드를 작성하세요.", "Q2. 뒤에서 3번째까지 데이터를 잘라내 보세요.", "Q3. 데이터의 순서를 반대로 뒤집어 출력해 보세요."],
+              "description": f"# 예시 데이터\ndata = ['데이터1', '데이터2', '데이터3', '데이터4']\n\n{title} 관련 기초 실습 문제예요.",
+              "questions": ["Q1. 첫 번째 항목을 선택하는 한 줄 코드를 작성하세요.", "Q2. 마지막 항목을 선택하는 코드를 작성하세요."],
               "hint": "기본 개념 공식 문서를 차근차근 참고해 보세요."
             }
 
@@ -230,11 +227,13 @@ jobs:
             teams_id = member_info['teamsId']
             name = member_info['name']
 
-            print(f"Gemini 질문 및 퀴즈 생성 중: [{week_label}] {title} → {name}")
+            print(f"Gemini 데이터 세트 및 질문 빌드 중: [{week_label}] {title} → {name}")
 
-            # 🛠️ 선언했던 정확한 함수 이름으로 매칭 완료 (NameError 근본 해결)
-            questions = generate_ticket_questions(title, reason)
+            # 1. 공용 문제지용 퀴즈 먼저 생성 (2문항 제한)
             quiz = generate_quiz(title, reason, name)
+
+            # 2. 퀴즈 본문을 연동하여 발표자 가이드 생성 (스포일러 방지 뼈대형)
+            questions = generate_ticket_questions(title, reason, quiz['description'])
 
             quiz_sections.append({
               'title': title,
@@ -266,17 +265,17 @@ jobs:
                     },
                     {
                       "type": "TextBlock",
-                      "text": "발표 준비 가이드 질문이에요. 이 질문들을 중심으로 준비해주세요!",
+                      "text": "공용 실습 문제지에 등록된 예시 코드를 기반으로 가이드라인을 확인해 주세요!",
                       "wrap": True
                     },
                     {
                       "type": "TextBlock",
-                      "text": f"Q1. {questions['q1']}",
+                      "text": f"{questions['q1']}",
                       "wrap": True
                     },
                     {
                       "type": "TextBlock",
-                      "text": f"Q2. {questions['q2']}",
+                      "text": f"{questions['q2']}",
                       "wrap": True
                     },
                     {
@@ -314,12 +313,11 @@ jobs:
           quiz_md += "---\n\n"
 
           for i, section in enumerate(quiz_sections, 1):
-            quiz_md += f"## 📌 문제 {i}. [{section['weekLabel']}] {section['title']}\n"
-            quiz_md += f"해설 담당: {section['assignee_name']}\n\n"
-            quiz_md += f"{section['quiz']['description']}\n\n"
+            quiz_md += f"## 📌 문제 {i}. [{section['weekLabel']}] {section['title']} (해설 담당: {section['assignee_name']})\n"
+            quiz_md += f"```python\n{section['quiz']['description']}\n```\n\n"
             for q in section['quiz']['questions']:
-              quiz_md += f"**{q}**\n\n"
-            quiz_md += f"💡 힌트: {section['quiz']['hint']}\n\n"
+              quiz_md += f"* **{q}**\n"
+            quiz_md += f"\n💡 힌트 키워드: {section['quiz']['hint']}\n\n"
             quiz_md += "---\n\n"
 
           os.makedirs('quiz', exist_ok=True)
