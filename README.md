@@ -15,7 +15,7 @@ Learn by teaching — Python, Azure, and AI study group
 | Jenny | [@Kim-Eunhyang](https://github.com/Kim-Eunhyang) | 
 | 김석영 | [@seokyeong-kim](https://github.com/seokyeong-kim) | 
 | 김예찬 | [@citizen-ye](https://github.com/citizen-ye) | 
-| 박성은 | [@](https://github.com/) | *
+| 박성은 | [@TAEstationSUNG](https://github.com/TAEstationSUNG) | *
 | 이준석 | [@eejs-js](https://github.com/eejs-js) | 
 | 임치영 | [@yim1jp](https://github.com/yim1jp) | 
 | 황선주 | [@seonju](https://github.com/seonju) | 
