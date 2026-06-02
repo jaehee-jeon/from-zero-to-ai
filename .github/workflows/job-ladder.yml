@@ -27,7 +27,12 @@ jobs:
       - name: skip 확인
         id: skip_check
         run: |
-          SKIP=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('skip', False))")
+          SKIP=$(python3 -c "
+          import json
+          with open('config/topics.json', 'r', encoding='utf-8') as f:
+            d = json.loads(f.read())
+          print(d.get('skip', False))
+          ")
           echo "skip=$SKIP" >> $GITHUB_OUTPUT
           if [ "$SKIP" == "True" ]; then
             echo "skip: true → 조용히 종료"
@@ -36,7 +41,12 @@ jobs:
       - name: confirmed 확인
         if: steps.skip_check.outputs.skip != 'True'
         run: |
-          CONFIRMED=$(cat config/topics.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('confirmed', False))")
+          CONFIRMED=$(python3 -c "
+          import json
+          with open('config/topics.json', 'r', encoding='utf-8') as f:
+            d = json.loads(f.read())
+          print(d.get('confirmed', False))
+          ")
           if [ "$CONFIRMED" != "True" ]; then
             echo "ERROR: confirmed가 true가 아닙니다"
             exit 1
