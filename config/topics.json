@@ -10,7 +10,8 @@
       "assignee": "",
       "submittedBy": "test",
       "difficultSubmitters": ["testa"],
-      "reason": "인덱싱 개념이 헷갈려요"
+      "reason": "인덱싱 개념이 헷갈려요",
+      "category": "coding" 
     }
   ]
 }

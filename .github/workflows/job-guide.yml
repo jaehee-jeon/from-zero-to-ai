@@ -13,7 +13,7 @@ on:
         required: true
         type: string
     secrets:
-      GEMINI_API_KEY:
+      ANTHROPIC_API_KEY:
         required: true
       TEAMS_WEBHOOK_BOARD:
         required: true
@@ -45,7 +45,7 @@ jobs:
 
       - name: 질문 생성 + 티켓 전송 + 문제지 생성
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TEAMS_WEBHOOK_BOARD: ${{ secrets.TEAMS_WEBHOOK_BOARD }}
           TEAMS_WEBHOOK_WEEKLY: ${{ secrets.TEAMS_WEBHOOK_WEEKLY }}
           ASSIGNMENTS: ${{ inputs.assignments }}
@@ -53,12 +53,12 @@ jobs:
           CONTEXT: ${{ inputs.context }}
         run: |
           python3 << 'PYEOF'
-          import json, os, urllib.request, urllib.error, time
+          import json, os, urllib.request, urllib.error, time, re
 
           assignments = json.loads(os.environ['ASSIGNMENTS'])
           round_num = os.environ['ROUND']
           context = os.environ['CONTEXT']
-          api_key = os.environ['GEMINI_API_KEY']
+          api_key = os.environ['ANTHROPIC_API_KEY']
           webhook_board = os.environ['TEAMS_WEBHOOK_BOARD']
           webhook_weekly = os.environ['TEAMS_WEBHOOK_WEEKLY']
 
@@ -67,155 +67,200 @@ jobs:
 
           id_map = {m['githubUsername']: {'teamsId': m['teamsId'], 'name': m['name']} for m in members}
 
-          MODEL = "gemini-2.5-flash"
-          URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent?key={api_key}"
+          MODEL = "claude-sonnet-4-5-20250929"
+          URL = "https://api.anthropic.com/v1/messages"
 
-          # ── Gemini 호출 (503 재시도 포함) ───────────────────────
-          def call_gemini(prompt, schema, max_retries=3):
+          # ── Claude 호출 (429/503/529 재시도 포함) ────────────────
+          def call_claude(prompt, max_retries=3):
             payload = {
-              "contents": [{"parts": [{"text": prompt}]}],
-              "generationConfig": {
-                "responseMimeType": "application/json",
-                "responseSchema": schema
-              }
+              "model": MODEL,
+              "max_tokens": 1024,
+              "messages": [{"role": "user", "content": prompt}]
             }
             data = json.dumps(payload).encode('utf-8')
 
             for attempt in range(max_retries):
               req = urllib.request.Request(
                 URL, data=data,
-                headers={"Content-Type": "application/json"},
+                headers={
+                  "Content-Type": "application/json",
+                  "x-api-key": api_key,
+                  "anthropic-version": "2023-06-01"
+                },
                 method='POST'
               )
               try:
-                with urllib.request.urlopen(req, timeout=30) as resp:
+                with urllib.request.urlopen(req, timeout=60) as resp:
                   result = json.loads(resp.read().decode('utf-8'))
-                  return result['candidates'][0]['content']['parts'][0]['text'].strip()
+                  return result['content'][0]['text'].strip()
               except urllib.error.HTTPError as e:
-                if e.code == 503:
+                if e.code in (429, 503, 529):
                   wait = (attempt + 1) * 5  # 5초, 10초, 15초
-                  print(f"WARNING: 503 재시도 중... ({attempt+1}/{max_retries}, {wait}초 대기)")
+                  print(f"WARNING: {e.code} 재시도 중... ({attempt+1}/{max_retries}, {wait}초 대기)")
                   time.sleep(wait)
                 else:
-                  print(f"WARNING: Gemini API 실패 (HTTP Error {e.code})")
+                  print(f"WARNING: Claude API 실패 (HTTP Error {e.code})")
                   return None
               except Exception as e:
-                print(f"WARNING: Gemini API 실패 ({e})")
+                print(f"WARNING: Claude API 실패 ({e})")
                 return None
 
             print("WARNING: 최대 재시도 횟수 초과 → fallback 사용")
             return None
 
+          # ── JSON 파싱 헬퍼 (코드펜스 제거) ───────────────────────
+          def parse_json(text):
+            if not text:
+              return None
+            text = re.sub(r'```(?:json)?', '', text).strip()
+            try:
+              return json.loads(text)
+            except:
+              m = re.search(r'\{.*\}', text, re.DOTALL)
+              if m:
+                try:
+                  return json.loads(m.group(0))
+                except:
+                  pass
+            return None
+
+          # ── 분야별 가이드 B 항목 지시 ────────────────────────────
+          GUIDE_B = {
+            "coding": "초보자가 자주 틀리는 코드 부분을 짚고, 짧은 코드 예시를 포함해 '왜 그렇게 생각하는지 설명해주세요' 형식으로",
+            "architecture": "구성/서비스를 잘못 선택하기 쉬운 상황을 짚고, 구체적인 상황 예시와 함께 '왜 그렇게 생각하는지 설명해주세요' 형식으로",
+            "ml": "모델/학습/평가에서 초보자가 자주 오해하는 부분을 짚고, 구체적인 상황 예시와 함께 '왜 그렇게 생각하는지 설명해주세요' 형식으로",
+            "solution": "AI 솔루션 설계에서 흔히 놓치는 부분을 짚고, 구체적인 상황 예시와 함께 '왜 그렇게 생각하는지 설명해주세요' 형식으로",
+          }
+
           # ── 발표자 티켓 가이드 생성 ──────────────────────────────
-          def generate_ticket_questions(title, reason):
+          def generate_ticket_questions(title, reason, category):
+            guide_b = GUIDE_B.get(category, GUIDE_B["coding"])
             prompt = f"""
             당신은 학습 설계 전문가입니다.
             비전공자와 전공자가 반반인 스터디에서
             발표자가 이 개념을 완벽히 이해하고
             잘 전달할 수 있도록 가이드 3가지를 한국어로 만들어주세요.
-            
+
             A. 개념 차이를 설명하게 하는 질문
-               - 이 개념 안에서 헷갈리기 쉬운 두 가지를 비교하게 하는 질문
-               - 공부했으면 답할 수 있는 수준
+               - 이 개념을 처음 배울 때 가장 헷갈리는 기초적인 두 가지를 비교
+               - 새로운 문법이나 심화 기능은 끌어오지 말 것
+               - 기본 자료 한 번 읽었으면 답할 수 있는 수준
                - 답하면서 개념이 명확해지는 질문
-            
+
             B. 실수하기 쉬운 부분을 짚는 질문
+               - {guide_b}
                - 초보자가 자주 틀리는 부분을 정확히 집어서
-               - "왜 그렇게 생각하는지 설명해주세요" 형식
-               - 구체적인 코드 예시 포함
-            
+
             C. 응용 질문
                - A, B를 이해한 사람이 한 발 더 나아가게 하는 질문
                - 개념의 특성이나 설계 이유를 생각하게 하는 질문
                - 공부 더 한 사람이라면 답할 수 있는 수준
-            
+
             조건:
             - 반드시 한국어
             - 각 2-3줄 이내로 간결하게
             - 답을 주는 질문 절대 금지
             - 전공 용어 최소화
-            
-            반드시 JSON으로만 반환.
+
+            반드시 JSON으로만 반환. 다른 텍스트나 코드펜스 없이 JSON 객체만 출력하세요.
             {{"a": "질문", "b": "질문", "c": "질문"}}
-            
+
             주제: {title}
             막힌 부분: {reason}
             맥락: {context}
             """
-            schema = {
-              "type": "OBJECT",
-              "properties": {
-                "a": {"type": "STRING"},
-                "b": {"type": "STRING"},
-                "c": {"type": "STRING"}
-              },
-              "required": ["a", "b", "c"]
-            }
-            result = call_gemini(prompt, schema)
-            if result:
-              try:
-                return json.loads(result)
-              except:
-                pass
+            result = parse_json(call_claude(prompt))
+            if result and all(k in result for k in ('a', 'b', 'c')):
+              return result
             return {
-              "a": f"{title}의 핵심 개념 두 가지를 비교해서 설명해주세요.",
+              "a": f"{title}에서 처음 배울 때 헷갈리기 쉬운 두 가지를 비교해서 설명해주세요.",
               "b": f"{title}을 처음 배울 때 자주 실수하는 부분은 무엇인가요?",
-              "c": f"{title}이 실제 데이터 처리에서 왜 필요한지 설명해주세요."
+              "c": f"{title}이 실무에서 왜 필요한지 설명해주세요."
             }
 
-          # ── 전원용 실습 문제 생성 ────────────────────────────────
-          def generate_quiz(title, reason):
+          # ── 분야별 퀴즈 출제 지시 ────────────────────────────────
+          QUIZ_GUIDE = {
+            "coding": """
+            - 실제로 코드나 쿼리를 1-2줄 작성해서 푸는 문제
+            - 단순한 구조만 사용, 정답이 명확한 문제
+            - description: 가상의 데이터나 코드 상황 (3줄 이내)""",
+            "architecture": """
+            - 구체적인 요구사항/상황을 주고, 어떤 구성이나 서비스를
+              선택해야 하는지 한 가지를 고르고 이유를 쓰게 하는 문제
+            - 정답 방향이 명확한 문제 (지나치게 열린 문제 금지)
+            - description: 가상의 시스템 요구사항 상황 (3줄 이내)""",
+            "ml": """
+            - 모델/학습/평가 관련 개념을 실제 상황에 적용해
+              판단하거나 한 줄로 설명하게 하는 문제
+            - 코드 없이도 풀 수 있는 개념 적용 문제
+            - description: 가상의 데이터셋이나 학습 상황 (3줄 이내)""",
+            "solution": """
+            - AI 솔루션을 만들 때의 접근 방식이나 흐름을 묻는 문제
+            - "이 상황에서 어떤 순서/방법으로 접근할까" 형식
+            - 정답 방향이 명확한 문제
+            - description: 가상의 비즈니스 요구사항 상황 (3줄 이내)""",
+          }
+
+          # ── 분야별 fallback ──────────────────────────────────────
+          def quiz_fallback(category, title):
+            base = {
+              "coding": {
+                "description": f"data = ['항목1', '항목2', '항목3']\n\n{title} 관련 기초 실습이에요.",
+                "question": "첫 번째 항목과 마지막 항목을 출력하는 코드를 작성하세요.",
+                "hint": "인덱스 번호를 활용해보세요.",
+              },
+              "architecture": {
+                "description": f"소규모 웹 서비스를 Azure에 올리려는 상황이에요.\n{title} 관련 구성을 고민 중이에요.",
+                "question": "이 상황에서 어떤 구성을 선택할지 한 가지 고르고 이유를 한 줄로 써보세요.",
+                "hint": "요구사항(규모·비용·확장성)을 기준으로 생각해보세요.",
+              },
+              "ml": {
+                "description": f"학습 데이터로 모델을 만들었는데 결과가 기대와 달라요.\n{title}과 관련된 상황이에요.",
+                "question": "이 상황에서 무엇을 먼저 확인해야 할지 한 줄로 설명하세요.",
+                "hint": "데이터와 모델 중 어디부터 볼지 생각해보세요.",
+              },
+              "solution": {
+                "description": f"회사에서 AI 기능을 도입하려는 상황이에요.\n{title}과 관련이 있어요.",
+                "question": "이 기능을 만들 때 어떤 순서로 접근할지 한 줄로 써보세요.",
+                "hint": "요구 정의 → 데이터 → 구현 흐름을 떠올려보세요.",
+              },
+            }
+            b = base.get(category, base["coding"])
+            b["real_world"] = f"실제로 이런 상황에서 써요: {title}은 실무에서 자주 활용돼요."
+            return b
+
+          #  전원용 실습 문제 생성 
+          def generate_quiz(title, reason, category):
+            guide = QUIZ_GUIDE.get(category, QUIZ_GUIDE["coding"])
             prompt = f"""
             당신은 실습 문제 출제자입니다.
-            비전공자도 기본 서적을 보면 풀 수 있는
-            실습 문제 1개와 실무 활용 설명을 만들어주세요.
-            
-            문제 조건:
+            비전공자도 기본 자료를 보면 풀 수 있는
+            문제 1개와 실무 활용 설명을 만들어주세요.
+
+            문제 조건 (주제 유형: {category}):
+            {guide}
             - 문제는 반드시 1개
-            - 기본 서적 보면 풀 수 있는 수준
-            - 단순 리스트만 사용 (딕셔너리 중첩 금지)
-            - 코드 1-2줄로 풀 수 있는 수준
-            - 정답이 명확한 문제
-            - description: 데이터 느낌의 가상 리스트 (3줄 이내)
-            - question: 쉽지만 직접 써야 답 가능한 문제 1개
+            - 기본 자료 보면 풀 수 있는 수준
+            - question: 직접 써야 답할 수 있는 문제 1개
             - hint: 핵심 키워드 1줄
-            
+
             실무 활용 설명 조건:
             - 이 개념이 실무에서 어떻게 쓰이는지 2-3줄로 설명
-            - 쉽고 친근하게
-            - "실제로 이런 상황에서 써요" 형식
-            
-            반드시 JSON으로만 반환.
-            {{"description": "상황 설명 + 파이썬 코드", "question": "문제", "hint": "힌트", "real_world": "실무 활용 설명"}}
-            
+            - 쉽고 친근하게, "실제로 이런 상황에서 써요" 형식
+
+            반드시 JSON으로만 반환. 다른 텍스트나 코드펜스 없이 JSON 객체만 출력하세요.
+            {{"description": "상황 설명", "question": "문제", "hint": "힌트", "real_world": "실무 활용 설명"}}
+
             주제: {title}
             막힌 부분: {reason}
             맥락: {context}
             """
-            schema = {
-              "type": "OBJECT",
-              "properties": {
-                "description": {"type": "STRING"},
-                "question": {"type": "STRING"},
-                "hint": {"type": "STRING"},
-                "real_world": {"type": "STRING"}
-              },
-              "required": ["description", "question", "hint", "real_world"]
-            }
-            result = call_gemini(prompt, schema)
-            if result:
-              try:
-                return json.loads(result)
-              except:
-                pass
-            return {
-              "description": f"data = ['데이터1', '데이터2', '데이터3']\n\n{title} 관련 기초 실습 문제예요.",
-              "question": "첫 번째 항목과 마지막 항목을 출력하는 코드를 작성하세요.",
-              "hint": "인덱스 번호와 음수 인덱스를 활용해보세요.",
-              "real_world": f"실제로 이런 상황에서 써요: {title}은 데이터를 다룰 때 필수적으로 사용돼요."
-            }
+            result = parse_json(call_claude(prompt))
+            if result and all(k in result for k in ('description', 'question', 'hint', 'real_world')):
+              return result
+            return quiz_fallback(category, title)
 
-          # ── Teams 메시지 전송 ────────────────────────────────────
+          # Teams 메시지 전송 
           def send_message(webhook_url, payload):
             data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
@@ -230,7 +275,7 @@ jobs:
               print(f"  ERROR: {e}")
               return False
 
-          # ── 메인 루프 ────────────────────────────────────────────
+          # 메인 루프 
           failed = []
           quiz_sections = []
 
@@ -239,6 +284,7 @@ jobs:
             week_label = assignment.get('weekLabel', '')
             assignee_github = assignment['assignee']
             reason = assignment.get('reason', '')
+            category = assignment.get('category', 'coding')
 
             member_info = id_map.get(assignee_github)
             if not member_info:
@@ -249,15 +295,16 @@ jobs:
             teams_id = member_info['teamsId']
             name = member_info['name']
 
-            print(f"질문 생성 중: [{week_label}] {title} → {name}")
+            print(f"질문 생성 중: [{week_label}] {title} ({category}) → {name}")
 
-            guide = generate_ticket_questions(title, reason)
-            quiz = generate_quiz(title, reason)
+            guide = generate_ticket_questions(title, reason, category)
+            quiz = generate_quiz(title, reason, category)
 
             quiz_sections.append({
               'title': title,
               'weekLabel': week_label,
               'assignee_name': name,
+              'category': category,
               'quiz': quiz
             })
 
@@ -330,7 +377,7 @@ jobs:
 
             time.sleep(2)
 
-          # ── 문제지 markdown 생성 ─────────────────────────────────
+          # 문제지 markdown 생성 
           quiz_md = f"# Round {round_num} 실습 문제지 🧩\n\n"
           quiz_md += "> 스터디 전날까지 GitHub 본인 폴더에\n"
           quiz_md += f"> `round{round_num}_quiz.md` 로 올려주세요!\n\n"
@@ -339,7 +386,10 @@ jobs:
           for i, section in enumerate(quiz_sections, 1):
             quiz_md += f"## 📌 문제 {i}. [{section['weekLabel']}] {section['title']}\n"
             quiz_md += f"해설 담당: {section['assignee_name']}\n\n"
-            quiz_md += f"```python\n{section['quiz']['description']}\n```\n\n"
+            if section['category'] == 'coding':
+              quiz_md += f"```python\n{section['quiz']['description']}\n```\n\n"
+            else:
+              quiz_md += f"{section['quiz']['description']}\n\n"
             quiz_md += f"**{section['quiz']['question']}**\n\n"
             quiz_md += f"💡 힌트: {section['quiz']['hint']}\n\n"
             quiz_md += f"🌍 실무에서는 이렇게 써요:\n{section['quiz']['real_world']}\n\n"
@@ -351,7 +401,7 @@ jobs:
             f.write(quiz_md)
           print(f"문제지 생성 완료: {quiz_path}")
 
-          # ── 문제지 알림 전송 ─────────────────────────────────────
+          # 문제지 알림 전송 
           quiz_payload = {
             "type": "message",
             "attachments": [{
