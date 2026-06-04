@@ -19,6 +19,8 @@ Learn by teaching — Python, Azure, and AI study group
 | 이준석 | [@Leejs-js](https://github.com/Leejs-js) | 
 | 임치영 | [@yim1jp](https://github.com/yim1jp) | 
 | 황선주 | [@seonju](https://github.com/seonju) | 
+| 정승영 | [@yim1jp](https://github.com/sampython1) | 
+| 최진웅 | [@bareph](https://github.com/bareph) | 
 
 
 
@@ -28,8 +30,8 @@ Learn by teaching — Python, Azure, and AI study group
 
 | 주차 | 주제 | 날짜 | 상태 |
 |------|------|------|------|
-| 1주차 | Python 기본문법 + 웹데이터 수집 | 6/1 ~ 6/5 | 🔜 예정 |
-| 2주차 | Azure 클라우드 + Azure ML | 6/8 ~ 6/12 | 🔜 예정 |
+| 1주차 | git set up 및 workflow 설명 | 6/2| 완료(10/10) |
+| 2주차 | Python 기본문법 + 웹데이터 수집 | 6/10 | 🔜 예정 |
 | 3주차 | 🚫 프로젝트 기간 (휴식) | 6/17 ~ 6/25 | — |
 | 4주차 | 데이터 정제 + AzureOpenAI 솔루션 | 6/29 ~ 7/3 | 🔜 예정 |
 
@@ -38,7 +40,7 @@ Learn by teaching — Python, Azure, and AI study group
 ## 🧩 스터디 진행 방식
 
 1. **매주 금요일 오전** — 스터디장이 주제 2개 수집 (어려웠던 것 1 + 중요한 것 1)
-2. **금요일 오후 4시** — 투표로 6개 주제 선정
+2. **금요일 오후 4시** — 투표로 10개 주제 선정
 3. **사다리타기** — 발표자 배정 (각 주제당 1명)
 4. **모임 전날까지** — 발표 자료 준비 (15분 이내)
 5. **모임 날** — 발표 + Q&A + GitHub 업로드 ✅
@@ -61,15 +63,6 @@ git commit -m "Docs: 1주차 정리 - 홍길동"
 git push
 ```
 
----
-
-## 📌 커밋 메시지 규칙
-
-```
-Docs: 1주차 파이썬 기본문법 정리 - 이름
-Fix: 오타 수정
-Add: 예시 코드 추가
-```
 
 ---
 
