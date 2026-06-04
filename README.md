@@ -28,7 +28,7 @@ Learn by teaching — Python, Azure, and AI study group
 
 ## 📅 주차별 진행 계획
 
-| 주차 | 주제 | 날짜 | 상태 |
+| 주차 | 주제 | 날짜 | 상태(참여) |
 |------|------|------|------|
 | 1주차 | git set up 및 workflow 설명 | 6/2| 완료(10/10) |
 | 2주차 | Python 기본문법 + 웹데이터 수집 | 6/10 | 🔜 예정 |
