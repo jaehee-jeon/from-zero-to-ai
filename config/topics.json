@@ -5,12 +5,12 @@
   "context": "Azure ML과 Azure OpenAI를 활용한 엔터프라이즈 AI 솔루션 개발을 목표로 하는 실무 중심 스터디",
   "topics": [
     {
-      "title": "파이썬 인덱싱과 슬라이싱",
+      "title": "NumPy·Pandas",
       "weekLabel": "1주차",
       "assignee": "",
       "submittedBy": "test",
       "difficultSubmitters": ["testa"],
-      "reason": "인덱싱 개념이 헷갈려요",
+      "reason": "NumPy·Pandas가 뭔지 하나도 모르겠어여ㅜ",
       "category": "coding" 
     }
   ]
