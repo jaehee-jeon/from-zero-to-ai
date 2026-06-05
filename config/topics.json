@@ -1,17 +1,100 @@
 {
+  "_category_options": "coding | architecture | ml | solution",
+  "_weekLabel_options": "1주차 | 2주차 | 3주차 | 4주차",
   "confirmed": true,
   "round": 1,
   "skip": false,
   "context": "Azure ML과 Azure OpenAI를 활용한 엔터프라이즈 AI 솔루션 개발을 목표로 하는 실무 중심 스터디",
   "topics": [
     {
+      "title": "Python 자료구조",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": ["sampython1","Kim-Eunhyang"],
+      "reason": "자료구조 — () [] {} 각각 한 줄 예시로 차이만. 메서드 나열 X, '언제 쓰나' 판단 기준 3개만.",
+      "category": "coding"
+    },
+    {
+      "title": "제어문",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": ["Leejs-js"],
+      "reason": "제어문 — for/while/if 각 1예제. 중첩·복잡 패턴 빼고 흐름 읽기만.",
+      "category": "coding"
+    },
+    {
       "title": "NumPy·Pandas",
       "weekLabel": "1주차",
       "assignee": "",
-      "submittedBy": "test",
-      "difficultSubmitters": ["testa"],
-      "reason": "NumPy·Pandas가 뭔지 하나도 모르겠어여ㅜ",
-      "category": "coding" 
+      "submittedBy": "",
+      "difficultSubmitters": ["TAEstationSUNG","seonju"],
+      "reason": "배열 vs 데이터프레임 차이와 용도. 코드는 생성 예시 1개씩.",
+      "category": "coding"
+    },
+    {
+      "title": "Pandas 전처리",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": ["TAEstationSUNG","seonju"],
+      "reason": "결측·중복 두 개로 한정. dropna/fillna/drop_duplicates 시연, 정제 흐름은 말로 요약.",
+      "category": "coding"
+    },
+    {
+      "title": "시각화 라이브러리",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": [],
+      "reason": "Matplotlib / Seaborn / Folium 무엇을 언제 쓰나 비교만. 대표 그래프 1장씩.",
+      "category": "coding"
+    },
+    {
+      "title": "객체지향(OOP)",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": ["TAEstationSUNG"],
+      "reason": "상속 빼고 클래스·메서드만. '복붙 코드 문제 → 클래스로 해결' 동기에 집중.",
+      "category": "coding"
+    },
+    {
+      "title": "전처리 모듈화",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": ["TAEstationSUNG"],
+      "reason": "OOP 클래스에 전처리 함수 1개 넣는 것까지만. 전체 리팩토링 X.",
+      "category": "coding"
+    },
+    {
+      "title": "Time Series 분석",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": [],
+      "reason": "모델링 빼고 날짜 인덱스 + resample/이동평균 흐름 파악만.",
+      "category": "coding"
+    },
+    {
+      "title": "웹 크롤링·스크래핑",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": ["seonju","yim1jp"],
+      "reason": "requests+BeautifulSoup 완성 코드 읽기와 한계 설명만. 라이브 실행 X.",
+      "category": "coding"
+    },
+    {
+      "title": "Azure 데이터 파이프라인",
+      "weekLabel": "1주차",
+      "assignee": "",
+      "submittedBy": "",
+      "difficultSubmitters": [],
+      "reason": "지도/비지도 차이 + 파이프라인 개념도 1장만. 맛보기.",
+      "category": "architecture"
     }
   ]
 }
