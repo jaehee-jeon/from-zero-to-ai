@@ -19,7 +19,7 @@ Learn by teaching — Python, Azure, and AI study group
 | 이준석 | [@Leejs-js](https://github.com/Leejs-js) | 
 | 임치영 | [@yim1jp](https://github.com/yim1jp) | 
 | 황선주 | [@seonju](https://github.com/seonju) | 
-| 정승영 | [@yim1jp](https://github.com/sampython1) | 
+| 정승영 | [@sampython1](https://github.com/sampython1) | 
 | 최진웅 | [@bareph](https://github.com/bareph) | 
 
 
