@@ -1,2 +1,2 @@
-fillna(df['age'].mean())
-drop_duplicates(subset='customer_id')
+df['age'] = fillna(df['age'].mean())
+df = df.drop_duplicates(subset='customer_id')
