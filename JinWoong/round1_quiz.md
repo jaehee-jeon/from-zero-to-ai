@@ -18,6 +18,6 @@
 
 ## 설명
  df['age'].fillna(df['age'].mean()) 
-    age 결측값을 age 열의 평균을 구하는 메서드인 .mean()으로 대체
+    age 결측값을 age 열의 평균을 구하는 메서드인 .mean()으로 평균값 산출
 drop_duplicates(subset='customer_id') 
     drop_duplicates를 활용하여 customer_id가 중복된 행 제거 (기본적으로 첫 번째 행만 유지)
