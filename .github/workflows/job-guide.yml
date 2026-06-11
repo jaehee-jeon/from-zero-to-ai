@@ -1,4 +1,4 @@
-name: job-guide
+iname: job-guide
 
 on:
   workflow_call:
@@ -207,7 +207,6 @@ jobs:
               "coding": {
                 "description": f"data = ['항목1', '항목2', '항목3']\n\n{title} 관련 기초 실습이에요.",
                 "question": "첫 번째 항목과 마지막 항목을 출력하는 코드를 작성하세요.",
-                "hint": "인덱스 번호를 활용해보세요.",
               },
               "architecture": {
                 "description": f"소규모 웹 서비스를 Azure에 올리려는 상황이에요.\n{title} 관련 구성을 고민 중이에요.",
@@ -242,21 +241,20 @@ jobs:
             - 문제는 반드시 1개
             - 기본 자료 보면 풀 수 있는 수준
             - question: 직접 써야 답할 수 있는 문제 1개
-            - hint: 핵심 키워드 1줄
 
             실무 활용 설명 조건:
             - 이 개념이 실무에서 어떻게 쓰이는지 2-3줄로 설명
             - 쉽고 친근하게, "실제로 이런 상황에서 써요" 형식
 
             반드시 JSON으로만 반환. 다른 텍스트나 코드펜스 없이 JSON 객체만 출력하세요.
-            {{"description": "상황 설명", "question": "문제", "hint": "힌트", "real_world": "실무 활용 설명"}}
+            {{"description": "상황 설명", "question": "문제", "real_world": "실무 활용 설명"}}
 
             주제: {title}
             막힌 부분: {reason}
             맥락: {context}
             """
             result = parse_json(call_claude(prompt))
-            if result and all(k in result for k in ('description', 'question', 'hint', 'real_world')):
+            if result and all(k in result for k in ('description', 'question', 'real_world')):
               return result
             return quiz_fallback(category, title)
 
@@ -391,7 +389,7 @@ jobs:
             else:
               quiz_md += f"{section['quiz']['description']}\n\n"
             quiz_md += f"**{section['quiz']['question']}**\n\n"
-            quiz_md += f"💡 힌트: {section['quiz']['hint']}\n\n"
+            quiz_md += f"💡 힌트: {section['quiz']}\n\n"
             quiz_md += f"🌍 실무에서는 이렇게 써요:\n{section['quiz']['real_world']}\n\n"
             quiz_md += "---\n\n"
 
