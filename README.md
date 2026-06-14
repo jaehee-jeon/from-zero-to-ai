@@ -24,7 +24,7 @@ GitHub Actions (cron + push 트리거)
 
 - 발표자마다 **본인 이름이 붙은 티켓**이 자동 발급
 - 풀이를 본인 폴더에 올리면 GitHub 기록으로
-- 단, 주제 수집(`config/topics.json`)은 Teams 댓글을 읽는 API가 없어 아직 수동
+- 단, 주제 수집(`config/topics.json`)은 Teams 댓글을 읽는 API가 없어 아직 수동😅
 
 워크플로 코드는 [`.github/workflows`](.github/workflows)에 있습니다.
 
