@@ -44,7 +44,7 @@ GitHub Actions (cron + push 트리거)
 
 ## 👥 스터디 멤버
 
-| 이름 | GitHub | Path | 비고 |
+| 이름 | GitHub | Path |  |
 |------|--------|--------|--------|
 | 전재희 | [@jaehee-jeon](https://github.com/jaehee-jeon) | [jaeheejeon](./jaeheejeon/) |*|
 | 김제니 | [@Kim-Eunhyang](https://github.com/Kim-Eunhyang) | [jenny](./jenny/) ||
