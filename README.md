@@ -1,7 +1,7 @@
 # from-zero-to-ai
 Learn by teaching — Python, Azure, and AI study group
 # 🧠 Learn by Teaching
-### Python · Azure · AI 수업 복습 스터디
+### Python · Azure · AI - Sesac MS AI Engineer 수업 복습 스터디
 
 > 아는 것은 설명할 수 있을 만큼, 모르는 것은 "이제 나도 안다" 할 수 있을 만큼.
 
