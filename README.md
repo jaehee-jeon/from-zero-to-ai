@@ -44,18 +44,18 @@ GitHub Actions (cron + push 트리거)
 
 ## 👥 스터디 멤버
 
-| 이름 | GitHub | Path |
-|------|--------|--------|
-| 전재희 | [@jaehee-jeon](https://github.com/jaehee-jeon) | [jaeheejeon](./jaeheejeon/) |
-| 김제니 | [@Kim-Eunhyang](https://github.com/Kim-Eunhyang) | [jenny](./jenny/) |
-| 김석영 | [@seokyeong-kim](https://github.com/seokyeong-kim) | [seokyeong-kim](./seokyeong-kim/) |
-| 김예찬 | [@citizen-ye](https://github.com/citizen-ye) | [kimyechan](./kimyechan/) |
-| 박성은 | [@TAEstationSUNG](https://github.com/TAEstationSUNG) | [sungeun](./sungeun/) |
+| 이름 | GitHub | Path | 비고 |
+|------|--------|--------|--------|
+| 전재희 | [@jaehee-jeon](https://github.com/jaehee-jeon) | [jaeheejeon](./jaeheejeon/) |*|
+| 김제니 | [@Kim-Eunhyang](https://github.com/Kim-Eunhyang) | [jenny](./jenny/) ||
+| 김석영 | [@seokyeong-kim](https://github.com/seokyeong-kim) | [seokyeong-kim](./seokyeong-kim/) ||
+| 김예찬 | [@citizen-ye](https://github.com/citizen-ye) | [kimyechan](./kimyechan/) ||
+| 박성은 | [@TAEstationSUNG](https://github.com/TAEstationSUNG) | [sungeun](./sungeun/) ||
 | 이준석 | [@Leejs-js](https://github.com/Leejs-js) | [leejunseok](./leejunseok/) |
-| 임치영 | [@yim1jp](https://github.com/yim1jp) | [yim](./yim/) |
-| 황선주 | [@seonju](https://github.com/seonju) | [seonju](./seonju/) |
-| 정승영 | [@sampython1](https://github.com/sampython1) | [Sam](./Sam/) |
-| 최진웅 | [@bareph](https://github.com/bareph) | [JinWoong](./JinWoong/) |
+| 임치영 | [@yim1jp](https://github.com/yim1jp) | [yim](./yim/) ||
+| 황선주 | [@seonju](https://github.com/seonju) | [seonju](./seonju/) ||
+| 정승영 | [@sampython1](https://github.com/sampython1) | [Sam](./Sam/) ||
+| 최진웅 | [@bareph](https://github.com/bareph) | [JinWoong](./JinWoong/) ||
 
 
 
